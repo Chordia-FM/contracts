@@ -1,0 +1,32 @@
+[package]
+name = "chordia-contracts"
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.85"
+description = "Shared API contract types for the Chordia ecosystem (single source of truth)."
+license = "AGPL-3.0-or-later"
+repository = "https://github.com/chordia-fm/contracts"
+readme = "README.md"
+
+[dependencies]
+serde = { version = "1", features = ["derive"] }
+uuid = { version = "1", features = ["serde"] }
+
+# Optional: TypeScript binding generation. Enabled only for codegen, never for
+# normal service builds, so the default build stays minimal and fast.
+ts-rs = { version = "12", optional = true, features = ["uuid-impl"] }
+
+# Optional: OpenAPI component-schema derivation (`utoipa::ToSchema`). Enabled by the backend so the
+# served OpenAPI spec reuses these canonical types; off by default for lean library/dj builds.
+utoipa = { version = "5", optional = true, features = ["uuid"] }
+
+[features]
+default = []
+# `cargo test --features ts` emits TypeScript into ./bindings for @chordia/contracts.
+ts = ["dep:ts-rs"]
+# Derive `utoipa::ToSchema` on every wire type so the backend can emit an OpenAPI 3.1 spec.
+openapi = ["dep:utoipa"]
+
+[lib]
+name = "chordia_contracts"
+path = "src/lib.rs"

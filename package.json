@@ -1,0 +1,16 @@
+{
+  "name": "@chordia/contracts",
+  "version": "0.1.0",
+  "description": "TypeScript contracts for Chordia, generated from the Rust source of truth.",
+  "license": "AGPL-3.0-or-later",
+  "type": "module",
+  "types": "./index.ts",
+  "exports": {
+    ".": "./index.ts"
+  },
+  "files": ["index.ts", "bindings"],
+  "scripts": {
+    "generate": "cargo test --features ts && echo 'generated ./bindings/*.ts'",
+    "check": "node scripts/check-bindings.mjs"
+  }
+}

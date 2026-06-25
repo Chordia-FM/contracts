@@ -210,7 +210,10 @@ mod tests {
             split_artists("Vince Staples & Larry Fisherman"),
             vec!["Vince Staples", "Larry Fisherman"]
         );
-        assert_eq!(primary_artist("Vince Staples & Larry Fisherman"), "Vince Staples");
+        assert_eq!(
+            primary_artist("Vince Staples & Larry Fisherman"),
+            "Vince Staples"
+        );
     }
 
     #[test]
@@ -221,7 +224,10 @@ mod tests {
             vec!["Florence & the Machine"]
         );
         // Known "X & Y" duos that are actually one act: the exception list keeps them whole.
-        assert_eq!(split_artists("Simon & Garfunkel"), vec!["Simon & Garfunkel"]);
+        assert_eq!(
+            split_artists("Simon & Garfunkel"),
+            vec!["Simon & Garfunkel"]
+        );
         assert_eq!(split_artists("Hall & Oates"), vec!["Hall & Oates"]);
         // `&` without spaces is not a separator.
         assert_eq!(split_artists("R&B Allstars"), vec!["R&B Allstars"]);
@@ -260,10 +266,7 @@ mod tests {
 
     #[test]
     fn dedupes_case_insensitively() {
-        assert_eq!(
-            split_artists("Drake; drake feat. Drake"),
-            vec!["Drake"]
-        );
+        assert_eq!(split_artists("Drake; drake feat. Drake"), vec!["Drake"]);
     }
 
     #[test]

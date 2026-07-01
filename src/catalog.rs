@@ -208,6 +208,10 @@ pub struct SyncTrack {
     /// [`CatalogSyncResponse::missing_covers`]).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub cover_hash: Option<String>,
+    /// Edition qualifier ("Deluxe", "Special Edition", …) when this track comes from a deluxe/special
+    /// edition that folds into the base album. `None` for the standard edition.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub edition: Option<String>,
 }
 
 /// Body of `POST /v1/catalog/sync` (authenticated `Authorization: Library {server_api_key}`).
@@ -220,6 +224,21 @@ pub struct CatalogSyncRequest {
     pub tracks: Vec<SyncTrack>,
 }
 
+/// The Hub's canonical primary artist for one synced album, so the library can organize files on disk
+/// under the same name the Hub shows (e.g. a collab tagged "Wiz Khalifa & MGK" resolves to "mgk", and
+/// "Machine Gun Kelly"/"MGK" fold to "mgk"). Keyed by the album's normalized title + the album-artist
+/// name the library sent, which together identify the library's album row.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export))]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+pub struct AlbumArtistResolution {
+    pub album_normalized: String,
+    /// The album-artist string the library sent (so it can match its own album row).
+    pub album_artist: String,
+    /// The Hub's canonical primary-artist name for that album.
+    pub canonical_artist: String,
+}
+
 /// Response to a catalog sync: how many tracks were accepted and which referenced cover hashes the
 /// Hub still needs the bytes for (upload via `PUT /v1/catalog/covers/{hash}`).
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -228,6 +247,10 @@ pub struct CatalogSyncRequest {
 pub struct CatalogSyncResponse {
     pub accepted: u32,
     pub missing_covers: Vec<String>,
+    /// The Hub's canonical album-artist per album in this batch, so the library can file albums under
+    /// the same name (and relocate when it changes). Empty from older Hubs.
+    #[serde(default)]
+    pub canonical_album_artists: Vec<AlbumArtistResolution>,
 }
 
 /// Body of `POST /v1/catalog/prune` (server-authenticated). The authoritative set of track refs the
@@ -251,6 +274,9 @@ pub struct CatalogPruneRequest {
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 pub struct BrowseArtist {
     pub id: Uuid,
+    /// MusicBrainz id, when known. Lets the Manager link an owned artist to its browse-all page.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub mbid: Option<String>,
     pub name: String,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub image_url: Option<String>,
@@ -272,6 +298,22 @@ pub struct BrowseAlbum {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub cover_url: Option<String>,
     pub track_count: u32,
+    /// MusicBrainz release-group MBID, when known. Lets the Manager link an owned album to its
+    /// coverage/tracklist view (which is keyed by release-group).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub mbid: Option<String>,
+    /// First-release date (`YYYY-MM-DD`), when known. Used for precise newest-first ordering and
+    /// labels in the discography (finer than `year`).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub release_date: Option<String>,
+    /// Primary release type (`Album`/`EP`/`Single`/`Compilation`/…), when known. Drives the
+    /// discography type badges.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub album_type: Option<String>,
+    /// True when this album is in the list only because the artist is a FEATURED credit on one of its
+    /// tracks (not the album's primary artist) — lets the discography mark "appears on" entries.
+    #[serde(default)]
+    pub appears_on: bool,
 }
 
 /// A reference to one artist (for rendering a track's per-artist links).
@@ -305,6 +347,10 @@ pub struct BrowseTrack {
     pub album_id: Option<Uuid>,
     pub track_no: Option<u16>,
     pub disc_no: Option<u16>,
+    /// Edition qualifier ("Deluxe", …) when this track is from a deluxe/special edition folded into
+    /// the base album; `None` for the standard edition. Lets the album view badge the extra tracks.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub edition: Option<String>,
     pub duration_ms: u32,
     /// Total times this track has been played (across the Hub).
     #[serde(default)]
@@ -379,8 +425,23 @@ pub struct ArtistDetail {
     /// Labels this artist has released on, with the year span (derived from their albums).
     #[serde(default)]
     pub labels: Vec<ArtistLabel>,
+    /// External links (official site, streaming, social) from MusicBrainz, curated to the platforms
+    /// worth surfacing. Rendered as icon links on the artist page.
+    #[serde(default)]
+    pub links: Vec<ArtistLink>,
     pub albums: Vec<BrowseAlbum>,
     pub top_tracks: Vec<BrowseTrack>,
+}
+
+/// One external link for an artist. `kind` is a stable platform slug the UI maps to an icon:
+/// `website`, `spotify`, `apple_music`, `youtube`, `youtube_music`, `soundcloud`, `bandcamp`,
+/// `tidal`, `deezer`, `instagram`, `twitter`, `tiktok`, `facebook`, `wikipedia`.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export))]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+pub struct ArtistLink {
+    pub kind: String,
+    pub url: String,
 }
 
 /// A label an artist has released on, with the span of years (for the artist-page label history).

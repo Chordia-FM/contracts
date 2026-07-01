@@ -76,6 +76,10 @@ pub enum CapabilityAction {
     StreamRead,
     /// Pull a resource for relay (listener's library → DJ's library).
     RelayPull,
+    /// Manage acquisition on a library the caller OWNS: interactive Prowlarr search + qBittorrent
+    /// grab, directly against the library (the Hub never sees indexer secrets or torrents). Minted
+    /// only for library owners.
+    ManageAcquisition,
 }
 
 /// The resource a capability token is scoped to.

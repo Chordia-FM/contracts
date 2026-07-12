@@ -431,6 +431,28 @@ pub struct ArtistDetail {
     pub links: Vec<ArtistLink>,
     pub albums: Vec<BrowseAlbum>,
     pub top_tracks: Vec<BrowseTrack>,
+    /// Owned live material for this artist (live-version album tracks + scattered "(Live)" bonus
+    /// variants), so the client can offer the dynamic Live album even when no live album exists.
+    #[serde(default)]
+    pub live_track_count: u32,
+}
+
+/// A synthesized per-artist "Live" collection: every owned live-version album track plus owned
+/// live bonus variants scattered across the artist's other releases. Not a real `albums` row —
+/// keyed on the artist (like `DailyMixDetail` is keyed on its seed), so it always reflects the
+/// current library. The client localizes the display title/subtitle.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export))]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+pub struct LiveAlbum {
+    pub artist_id: Uuid,
+    pub artist_name: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub image_url: Option<String>,
+    /// Ordered by source album date, then disc/track position.
+    pub tracks: Vec<BrowseTrack>,
+    /// Distinct source albums the tracks were drawn from (for the localized subtitle).
+    pub source_album_count: u32,
 }
 
 /// One external link for an artist. `kind` is a stable platform slug the UI maps to an icon:

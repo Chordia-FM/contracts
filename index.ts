@@ -85,6 +85,7 @@ export * from "./bindings/LibraryShare";
 export * from "./bindings/LibrarySummary";
 export * from "./bindings/ListeningCharts";
 export * from "./bindings/ListeningEvent";
+export * from "./bindings/LiveAlbum";
 export * from "./bindings/LoginRequest";
 export * from "./bindings/Lyrics";
 export * from "./bindings/LyricsEditInput";

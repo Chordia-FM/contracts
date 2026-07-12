@@ -25,6 +25,7 @@ export * from "./bindings/ArtistRelation";
 export * from "./bindings/ArtistOverrideInput";
 export * from "./bindings/ArtistOverrideView";
 export * from "./bindings/AudioProperties";
+export * from "./bindings/AuthResponse";
 export * from "./bindings/BrowseAlbum";
 export * from "./bindings/BrowseArtist";
 export * from "./bindings/BrowseTrack";
@@ -111,6 +112,7 @@ export * from "./bindings/QueueItem";
 export * from "./bindings/RecentItem";
 export * from "./bindings/RecentKind";
 export * from "./bindings/RecentPlay";
+export * from "./bindings/RefreshRequest";
 export * from "./bindings/RegisterRequest";
 export * from "./bindings/RelayRequest";
 export * from "./bindings/ResolvedServer";
@@ -150,13 +152,7 @@ export * from "./bindings/UserProfile";
 export * from "./bindings/UserSettings";
 export * from "./bindings/WrappedReport";
 
-// ── Hand-declared types not yet in the Rust bindings ─────────────────────────
-
-/** Hub auth response: user + token pair. */
-export interface AuthResponse {
-	user: import("./bindings/UserProfile").UserProfile;
-	tokens: import("./bindings/TokenPair").TokenPair;
-}
+// ── Hand-declared overrides of generated bindings ────────────────────────────
 
 /** Hub capability grant request - asks the Hub for a short-lived streaming token. */
 export interface GrantRequest {
@@ -172,9 +168,4 @@ export interface GrantResponse {
 	/** The resolved library server to connect to directly. */
 	server: import("./bindings/ServerEndpoint").ServerEndpoint;
 	expires_at: number;
-}
-
-/** Refresh token request. */
-export interface RefreshRequest {
-	refresh_token: string;
 }

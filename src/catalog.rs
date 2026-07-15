@@ -212,6 +212,10 @@ pub struct SyncTrack {
     /// edition that folds into the base album. `None` for the standard edition.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub edition: Option<String>,
+    /// Content advisory from the file's iTunes/ID3 rating tag: `"explicit"` or `"clean"`; `None` when
+    /// unrated. Drives the EXPLICIT badge.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub advisory: Option<String>,
 }
 
 /// Body of `POST /v1/catalog/sync` (authenticated `Authorization: Library {server_api_key}`).
@@ -310,6 +314,10 @@ pub struct BrowseAlbum {
     /// discography type badges.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub album_type: Option<String>,
+    /// Version tag: absent for the studio release, "instrumental" / "live" for a version release, so
+    /// browsing can shelve them separately and Manager Discover can badge them.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub version_type: Option<String>,
     /// True when this album is in the list only because the artist is a FEATURED credit on one of its
     /// tracks (not the album's primary artist) — lets the discography mark "appears on" entries.
     #[serde(default)]
@@ -351,6 +359,10 @@ pub struct BrowseTrack {
     /// the base album; `None` for the standard edition. Lets the album view badge the extra tracks.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub edition: Option<String>,
+    /// Content advisory: `"explicit"` or `"clean"` (from the file's iTunes/ID3 rating tag), `None`
+    /// when unrated. Drives the EXPLICIT badge.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub advisory: Option<String>,
     pub duration_ms: u32,
     /// Total times this track has been played (across the Hub).
     #[serde(default)]
@@ -491,6 +503,9 @@ pub struct AlbumDetail {
     pub artist: String,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub artist_id: Option<Uuid>,
+    /// The primary artist's image (for the breadcrumb / header artist chip). Framing-aware.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub artist_image_url: Option<String>,
     pub year: Option<u16>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub release_date: Option<String>,

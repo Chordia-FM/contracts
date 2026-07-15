@@ -79,6 +79,8 @@ export * from "./bindings/JobClaimRequest";
 export * from "./bindings/JobStatusUpdate";
 export * from "./bindings/LabelDetail";
 export * from "./bindings/LabelSummary";
+export * from "./bindings/LastfmSessionRequest";
+export * from "./bindings/LastfmStatus";
 export * from "./bindings/LibraryAcquisitionStatus";
 export * from "./bindings/LibraryCoverage";
 export * from "./bindings/LibraryShare";

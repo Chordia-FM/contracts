@@ -5,6 +5,26 @@ use serde::{Deserialize, Serialize};
 use crate::streaming::QualityProfile;
 use crate::{EpochMillis, Uuid};
 
+/// A user's Last.fm connection status, for the settings "Connections" section.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export))]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+pub struct LastfmStatus {
+    pub connected: bool,
+    /// The connected Last.fm username, when connected.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub username: Option<String>,
+}
+
+/// Body of `POST /v1/lastfm/session`: the single-use web-auth token from the Last.fm callback,
+/// which the Hub exchanges (signed) for the user's permanent session key.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export))]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+pub struct LastfmSessionRequest {
+    pub token: String,
+}
+
 /// Global account registration payload.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export))]

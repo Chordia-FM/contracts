@@ -190,6 +190,10 @@ pub struct DiscoverReleaseGroup {
     pub first_release_date: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub cover_url: Option<String>,
+    /// "instrumental" / "live" version release (from the MB disambiguation / the `Live` secondary type),
+    /// so the discography can badge it and shelve it apart. Absent for the studio release.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub version_type: Option<String>,
     pub owned: bool,
 }
 
@@ -306,6 +310,12 @@ pub struct AlbumTrackCoverage {
     /// The album artist's MusicBrainz id, for download context / linking.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub artist_mbid: Option<String>,
+    /// The album artist's display name, for the breadcrumb trail and linking back to the artist.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub artist_name: Option<String>,
+    /// The album artist's image, for the breadcrumb avatar.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub artist_image_url: Option<String>,
     /// The album's editions, in display order (Standard first).
     pub editions: Vec<AlbumEdition>,
     /// True while the recording listing is still being fetched.

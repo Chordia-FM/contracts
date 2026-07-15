@@ -56,6 +56,11 @@ pub struct DownloadRequestInput {
     pub artist_mbid: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub rg_mbid: Option<String>,
+    /// For `kind="album"`: a specific release (edition) within the release-group to acquire — e.g. the
+    /// Deluxe edition. When set, the library targets THIS edition (its label steers the search and its
+    /// tracklist scopes verification) instead of grabbing whatever release satisfies the group.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub release_mbid: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub recording_mbid: Option<String>,
     /// Destination library. Required only when the user owns more than one acquisition-enabled lib.
@@ -183,6 +188,14 @@ pub struct ClaimedJob {
     pub artist_mbid: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub rg_mbid: Option<String>,
+    /// The specific release (edition) this job targets, when the user picked one (e.g. the Deluxe
+    /// edition). None = the whole release-group. Scopes `expected_titles` to just this edition.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub release_mbid: Option<String>,
+    /// The edition label ("Deluxe", "2009 Remaster", …) for `release_mbid`. The library appends it to
+    /// the Prowlarr query to steer results toward that exact edition (falling back to the plain query).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub edition_label: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub recording_mbid: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -211,6 +224,12 @@ pub struct ClaimedJob {
     /// Empty when the Hub has no cached tracklist (verification is then skipped).
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub expected_titles: Vec<String>,
+    /// For a single-TRACK download (`kind="track"`): the exact title(s) to import. The library then
+    /// imports ONLY the matching file(s) from the grabbed release — not the whole album — and rejects a
+    /// release that doesn't contain the track (so downloading one bonus track can't dump a whole,
+    /// possibly-wrong album into the library). Empty for album/discography jobs (import everything).
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub wanted_titles: Vec<String>,
 }
 
 /// Body of `POST /v1/manager/jobs/{id}/status`: a status transition reported by the library.

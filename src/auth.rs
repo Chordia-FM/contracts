@@ -80,6 +80,10 @@ pub enum CapabilityAction {
     /// grab, directly against the library (the Hub never sees indexer secrets or torrents). Minted
     /// only for library owners.
     ManageAcquisition,
+    /// Recover the library server's management token on a device the owner is signed in on (add /
+    /// remove folders, rescan). Owner-only; the library returns its management token in exchange, so a
+    /// new device manages folders without re-running the one-time pairing flow. Minted only for owners.
+    RecoverManagement,
 }
 
 /// The resource a capability token is scoped to.

@@ -154,6 +154,8 @@ export * from "./bindings/TranscodeTarget";
 export * from "./bindings/Trending";
 export * from "./bindings/UpdateProfile";
 export * from "./bindings/UserProfile";
+export * from "./bindings/UpgradeProposal";
+export * from "./bindings/UpgradeProposals";
 export * from "./bindings/UserSettings";
 export * from "./bindings/WrappedReport";
 

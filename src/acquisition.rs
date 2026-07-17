@@ -231,6 +231,12 @@ pub struct ClaimedJob {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub chosen_seeders: Option<i32>,
     pub interactive: bool,
+    /// A quality-upgrade job (queued by the library's upgrade sweep): the library must only grab a
+    /// release STRICTLY better than the owned copy (v1: lossless, since sweeps propose all-lossy
+    /// albums), and must go quietly to `no_results` instead of asking when unsure — upgrades are
+    /// unattended.
+    #[serde(default)]
+    pub upgrade: bool,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub quality_profile: Option<DownloadQualityProfile>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -321,6 +327,34 @@ pub struct CandidateInput {
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 pub struct JobCandidates {
     pub candidates: Vec<CandidateInput>,
+}
+
+/// One album the library's quality-upgrade sweep proposes re-acquiring in better quality
+/// (currently all-lossy on disk). The Hub resolves it to a release-group and queues an
+/// `origin="upgrade"` job for the library owner.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export))]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+pub struct UpgradeProposal {
+    pub library_id: Uuid,
+    pub album_title: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub artist: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub artist_mbid: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub release_mbid: Option<String>,
+    /// Human label of what's owned now (e.g. "MP3"), for the queue display.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub current_quality: Option<String>,
+}
+
+/// Body of `POST /v1/manager/upgrades` — the library's periodic upgrade-sweep report.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export))]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+pub struct UpgradeProposals {
+    pub proposals: Vec<UpgradeProposal>,
 }
 
 /// Body of `POST /v1/manager/libraries/{id}/acquisition/report` — the library's health heartbeat.

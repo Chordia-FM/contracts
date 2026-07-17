@@ -100,6 +100,14 @@ pub struct DownloadJobView {
     pub progress: f32,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub error: Option<String>,
+    /// The requesting user's handle, set when the viewer isn't the requester (a friend queued this
+    /// into a library you own, or you queued it into a friend's library — see `library_owner`).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub requested_by: Option<String>,
+    /// The destination library's owner handle, set when the viewer isn't the owner (you requested
+    /// into a friend's library).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub library_owner: Option<String>,
     pub created_at: EpochMillis,
     pub updated_at: EpochMillis,
 }

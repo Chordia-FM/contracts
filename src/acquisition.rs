@@ -204,6 +204,24 @@ pub struct ClaimedJob {
     /// grabs this directly and skips the search/score step.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub chosen_guid: Option<String>,
+    /// The chosen candidate's release title (as it appeared in the pick list).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub chosen_title: Option<String>,
+    /// The chosen candidate's stored source, captured at candidate time. When present the library
+    /// grabs it directly — no live Prowlarr re-search, so a pick never expires. Absent on legacy
+    /// picks made before sources were persisted (the library falls back to re-searching the guid).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub chosen_download_url: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub chosen_magnet_url: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub chosen_info_hash: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub chosen_indexer: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub chosen_size_bytes: Option<i64>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub chosen_seeders: Option<i32>,
     pub interactive: bool,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub quality_profile: Option<DownloadQualityProfile>,
@@ -279,6 +297,14 @@ pub struct CandidateInput {
     pub seeders: Option<i32>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub leechers: Option<i32>,
+    /// The release's actual download source, persisted with the candidate so a later user pick
+    /// grabs it directly instead of re-resolving the guid with a live (ephemeral) Prowlarr search.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub download_url: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub magnet_url: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub info_hash: Option<String>,
 }
 
 /// Body of `POST /v1/manager/jobs/{id}/candidates`.

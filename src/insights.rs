@@ -180,6 +180,10 @@ pub enum EntityKind {
 pub struct EntityStats {
     pub kind: EntityKind,
     pub id: Uuid,
+    pub period: Period,
+    pub window_start: EpochMillis,
+    pub window_end: EpochMillis,
+    pub granularity: BucketGranularity,
     pub total_plays: u32,
     pub total_ms_played: u64,
     /// First/last time the user played this entity (epoch millis). `None` if never played.
@@ -187,12 +191,38 @@ pub struct EntityStats {
     pub first_played: Option<EpochMillis>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub last_played: Option<EpochMillis>,
-    /// 1-based rank among the user's entities of this kind, by all-time play count. `None` if the
-    /// user has never played it.
+    /// 1-based rank among the user's entities of this kind in the requested period. `None` if the
+    /// user has never played it in the period.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub rank: Option<u32>,
-    /// Monthly play trend (chronological), for a sparkline.
+    /// Number of the user's played entities included in `rank`. `None` when `rank` is `None`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub rank_total: Option<u32>,
+    /// Hub-wide all-time plays from the entity's global rollup. `None` until the rollup has a row.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub global_plays: Option<u64>,
+    /// Local-calendar play trend (chronological), for a sparkline.
     pub trend: Vec<TimeBucket>,
+}
+
+/// Page-only listening detail for one catalog entity. Kept separate from [`EntityStats`] so the
+/// lightweight catalog-page panel does not wait on clock and top-list scans.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export))]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+pub struct EntityBreakdown {
+    pub kind: EntityKind,
+    pub id: Uuid,
+    pub period: Period,
+    pub window_start: EpochMillis,
+    pub window_end: EpochMillis,
+    /// When the caller listens to this entity, in their own timezone.
+    pub clock: ClockGrid,
+    /// The caller's most-played tracks of this entity: an album's or artist's tracks; empty when
+    /// the entity is a track.
+    pub top_tracks: Vec<TopItem>,
+    /// An artist's albums by the caller's play count. Empty for album and track.
+    pub top_albums: Vec<TopItem>,
 }
 
 /// One entry in the friends' recent-activity feed, a play by a friend whose privacy allows it.

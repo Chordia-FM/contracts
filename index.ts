@@ -55,6 +55,7 @@ export * from "./bindings/DownloadJobView";
 export * from "./bindings/DownloadQualityProfile";
 export * from "./bindings/DownloadQualityProfileInput";
 export * from "./bindings/DownloadRequestInput";
+export * from "./bindings/EntityBreakdown";
 export * from "./bindings/EntityKind";
 export * from "./bindings/EntityStats";
 export * from "./bindings/EqBand";

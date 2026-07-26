@@ -39,6 +39,7 @@ export * from "./bindings/CapabilityClaims";
 export * from "./bindings/ClaimedJob";
 export * from "./bindings/ClientMessage";
 export * from "./bindings/ClientType";
+export * from "./bindings/ClockGrid";
 export * from "./bindings/Compatibility";
 export * from "./bindings/CoverageSummary";
 export * from "./bindings/DailyMix";

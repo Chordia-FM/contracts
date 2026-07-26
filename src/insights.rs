@@ -32,8 +32,11 @@ pub enum Period {
 #[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export))]
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 pub enum BucketGranularity {
+    Hour,
     Day,
+    Week,
     Month,
+    Year,
 }
 
 /// One bucket in a time series of listening activity.
@@ -41,10 +44,24 @@ pub enum BucketGranularity {
 #[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export))]
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 pub struct TimeBucket {
-    /// Inclusive start of the bucket (epoch millis, UTC-truncated).
+    /// Inclusive start of the bucket (epoch millis, truncated in the requested timezone).
     pub start: EpochMillis,
     pub plays: u32,
     pub ms_played: u64,
+}
+
+/// Listening intensity by local weekday and hour.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export))]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+pub struct ClockGrid {
+    /// IANA timezone used to place events into local calendar cells.
+    pub timezone: String,
+    /// Exactly 168 row-major entries: `dow * 24 + hour`, with Sunday at row zero.
+    pub cells: Vec<u32>,
+    /// Highest non-zero play count in any cell.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub peak: Option<u32>,
 }
 
 /// Chart-oriented listening data for a period: an activity time series plus the listening-clock
@@ -58,13 +75,16 @@ pub struct ListeningCharts {
     pub window_start: EpochMillis,
     pub window_end: EpochMillis,
     pub granularity: BucketGranularity,
+    /// IANA timezone used for the local calendar window and time buckets.
+    pub timezone: String,
     /// Plays bucketed across the window, chronological. Daily for windows up to a year; monthly for
     /// `Overall`. Doubles as a calendar-heatmap source at day granularity.
     pub over_time: Vec<TimeBucket>,
-    /// Plays by hour-of-day (UTC), exactly 24 entries (index = hour 0 to 23).
+    /// Plays by local hour-of-day, exactly 24 entries (index = hour 0 to 23).
     pub clock: Vec<u32>,
-    /// Plays by day-of-week (UTC), exactly 7 entries (index 0 = Sunday through 6 = Saturday).
+    /// Plays by local day-of-week, exactly 7 entries (index 0 = Sunday through 6 = Saturday).
     pub weekday: Vec<u32>,
+    pub clock_grid: ClockGrid,
 }
 
 /// One entry in the full scrobble history feed.

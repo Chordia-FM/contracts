@@ -125,6 +125,9 @@ pub struct UserSettings {
     /// UI; the frontend also mirrors it into the `chordia_locale` cookie so SSR's first paint agrees.
     #[serde(default)]
     pub locale: String,
+    /// IANA timezone used for calendar-based listening insights. Empty = follow the client.
+    #[serde(default)]
+    pub timezone: String,
     #[serde(default = "yes")]
     pub autoplay: bool,
     /// How many upcoming queue tracks to prefetch in the background for seamless, gap-free
@@ -156,6 +159,7 @@ impl Default for UserSettings {
             accent: default_accent(),
             default_surface: default_surface(),
             locale: String::new(),
+            timezone: String::new(),
             autoplay: true,
             preload_count: default_preload(),
             crossfade_seconds: 0,

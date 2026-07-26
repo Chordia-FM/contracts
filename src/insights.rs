@@ -114,8 +114,11 @@ pub struct TopItem {
     pub image_url: Option<String>,
 }
 
-/// A listening-insights report for a user over a period. Served from precomputed rollups, never
-/// from the raw fact table.
+/// A listening-insights report for a user over a period.
+///
+/// Computed live from the partitioned `listening_events` fact table, scoped to one user over a
+/// bounded window. (This previously claimed to be served from precomputed rollups; it never was —
+/// the fixed-grain rollups cannot answer an arbitrary rolling window precisely.)
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export))]
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
@@ -227,7 +230,12 @@ pub struct PublicProfile {
 #[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export))]
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 pub struct RecentPlay {
-    pub track_id: Uuid,
+    /// The play event's idempotency id. Always present, so it is the stable list key.
+    pub event_id: Uuid,
+    /// Resolved catalog track id, so the row can link to the track. `None` when the scrobble never
+    /// matched the catalog — which is why this cannot double as the list key.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub track_id: Option<Uuid>,
     pub title: String,
     pub artist: String,
     pub played_at: EpochMillis,

@@ -134,6 +134,157 @@ pub struct TopItem {
     pub image_url: Option<String>,
 }
 
+/// One consecutive run of active listening days.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export))]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+pub struct Streak {
+    /// First local calendar day in the run (`YYYY-MM-DD`).
+    pub start_day: String,
+    /// Last local calendar day in the run (`YYYY-MM-DD`).
+    pub end_day: String,
+    pub days: u32,
+    pub plays: u32,
+    /// True when the run reaches today or yesterday in the requested timezone.
+    pub active: bool,
+}
+
+/// A continuous listening session, split after a 30-minute idle gap.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export))]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+pub struct ListeningSession {
+    pub started_at: EpochMillis,
+    pub ended_at: EpochMillis,
+    pub tracks: u32,
+    pub ms_played: u64,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub top_artist: Option<String>,
+}
+
+/// A notable ordinal play in a user's listening history.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export))]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+pub struct Milestone {
+    pub ordinal: u64,
+    pub played_at: EpochMillis,
+    pub title: String,
+    pub artist: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub track_id: Option<Uuid>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub image_url: Option<String>,
+}
+
+/// Personal listening records and all-time milestones for one reporting window.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export))]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+pub struct ListeningRecords {
+    pub period: Period,
+    pub window_start: EpochMillis,
+    pub window_end: EpochMillis,
+    pub timezone: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub longest_streak: Option<Streak>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub current_streak: Option<Streak>,
+    pub active_days: u32,
+    /// Mean plays per calendar day in the window, including silent days.
+    pub avg_plays_per_day: f32,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub biggest_day: Option<TimeBucket>,
+    /// Longest sessions first, capped at ten.
+    pub top_sessions: Vec<ListeningSession>,
+    /// Round-number play milestones, ascending.
+    pub milestones: Vec<Milestone>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub first_scrobble: Option<Milestone>,
+}
+
+/// How many distinct catalog entities were played and newly discovered in a reporting window.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export))]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+pub struct DiscoveryStats {
+    pub period: Period,
+    pub window_start: EpochMillis,
+    pub window_end: EpochMillis,
+    pub artists_played: u32,
+    pub artists_new: u32,
+    pub albums_played: u32,
+    pub albums_new: u32,
+    pub tracks_played: u32,
+    pub tracks_new: u32,
+    /// Share of window plays whose track was heard before the window (`0.0..=1.0`).
+    pub repeat_rate: f32,
+    pub top_new_artists: Vec<TopItem>,
+}
+
+/// One ranked catalog entry in a current-versus-previous-window chart.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export))]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+pub struct ChartEntry {
+    pub id: Uuid,
+    pub name: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub subtitle: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub image_url: Option<String>,
+    pub plays: u32,
+    pub ms_played: u64,
+    pub rank: u32,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub prev_rank: Option<u32>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub global_plays: Option<u64>,
+}
+
+/// A ranked item whose position changed between adjacent reporting windows.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export))]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+pub struct RankMove {
+    pub item: ChartEntry,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub delta: Option<i32>,
+}
+
+/// Current-window chart movement compared with the immediately preceding window.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export))]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+pub struct RankMovers {
+    pub kind: EntityKind,
+    pub period: Period,
+    pub climbers: Vec<RankMove>,
+    pub fallers: Vec<RankMove>,
+    pub newcomers: Vec<ChartEntry>,
+}
+
+/// One past year's plays on today's local month and day.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export))]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+pub struct OnThisDayYear {
+    pub year: u16,
+    pub plays: u32,
+    /// Newest-first sample of that day's plays.
+    pub entries: Vec<HistoryEntry>,
+}
+
+/// Listening-history memories whose local date matches today's month and day.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export))]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+pub struct OnThisDay {
+    pub timezone: String,
+    /// Most recent year first.
+    pub years: Vec<OnThisDayYear>,
+}
+
 /// A listening-insights report for a user over a period.
 ///
 /// Computed live from the partitioned `listening_events` fact table, scoped to one user over a

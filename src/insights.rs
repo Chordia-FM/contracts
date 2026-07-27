@@ -26,6 +26,21 @@ pub enum Period {
     Overall,
 }
 
+/// A figure measured against the equivalent preceding window, so a number can be read as a trend
+/// rather than in isolation.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export))]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+pub struct Compared {
+    pub current: u64,
+    pub previous: u64,
+    /// Fractional change, for example `-0.73` for a 73% drop. `None` when `previous` is zero,
+    /// because percentage change from nothing is undefined; clients should describe this as
+    /// "new" rather than rendering infinity.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub change: Option<f32>,
+}
+
 /// Grain the over-time series is bucketed at, so the client can label its x-axis correctly.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
@@ -48,6 +63,80 @@ pub struct TimeBucket {
     pub start: EpochMillis,
     pub plays: u32,
     pub ms_played: u64,
+}
+
+/// Plays attributed to albums released in one decade.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export))]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+pub struct DecadeBucket {
+    /// The decade's first year, for example `1990`.
+    pub decade: i16,
+    pub plays: u32,
+    pub ms_played: u64,
+}
+
+/// Exclusive album-genre shares over time. Albums may carry multiple genres; for a stacked chart,
+/// each play is assigned once to the highest-ranked top genre on its album. Plays whose album has
+/// none of the top genres, including unresolved albums and albums without genres, go to the
+/// trailing literal `"other"` entry.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export))]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+pub struct GenreTrend {
+    /// Top album genres in descending whole-window play order, followed by `"other"`.
+    pub genres: Vec<String>,
+    /// Chronological buckets. Every `plays` vector is parallel to `genres` and sums to all plays in
+    /// that time bucket.
+    pub buckets: Vec<GenreTrendBucket>,
+}
+
+/// One local-calendar bucket of exclusive album-genre play counts.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export))]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+pub struct GenreTrendBucket {
+    pub start: EpochMillis,
+    /// Counts parallel to [`GenreTrend::genres`], including its trailing `"other"` count.
+    pub plays: Vec<u32>,
+}
+
+/// Five normalized measures of listening behaviour over one local-calendar reporting window.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export))]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+pub struct Fingerprint {
+    /// `1 - Gini` of daily play counts across every calendar day in the window, including silent
+    /// days. `1.0` means every day has the same play count; an empty window is `0.0`.
+    pub consistency: f32,
+    /// Distinct resolved artists, albums, and tracks first heard in the window divided by all
+    /// distinct resolved artists, albums, and tracks played in it. The three entity kinds share
+    /// one denominator; an empty denominator is `0.0`.
+    pub discovery: f32,
+    /// Resolved-track plays after that track's first play in the window divided by all resolved-
+    /// track plays in the window. `0.7` means 70% of resolved plays repeated a track already heard
+    /// during this window.
+    pub replay: f32,
+    /// Normalized Herfindahl-Hirschman Index of resolved artist play shares:
+    /// `(HHI - 1/n) / (1 - 1/n)`. `0.0` is an even split across the `n` artists and `1.0` is a
+    /// single artist; no resolved artists is `0.0`.
+    pub concentration: f32,
+    /// Population coefficient of variation of daily play counts, including silent days, mapped to
+    /// `CV / (1 + CV)`. `0.0` is identical volume every day; values approach `1.0` as day-to-day
+    /// volume becomes more volatile. An empty window is `0.0`.
+    pub variance: f32,
+}
+
+/// A user's listening fingerprint and, when available, the arithmetic mean of fingerprints for
+/// Hub users with at least 20 plays in the same window.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export))]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+pub struct FingerprintReport {
+    pub you: Fingerprint,
+    /// Omitted when no Hub user meets the minimum sample size; never synthesized.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub global_average: Option<Fingerprint>,
 }
 
 /// Listening intensity by local weekday and hour.
@@ -193,8 +282,13 @@ pub struct ListeningRecords {
     pub active_days: u32,
     /// Mean plays per calendar day in the window, including silent days.
     pub avg_plays_per_day: f32,
+    /// Current and previous averages rounded to the nearest whole play per day. The precise current
+    /// value remains available in `avg_plays_per_day`.
+    pub avg_plays_per_day_compared: Compared,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub biggest_day: Option<TimeBucket>,
+    /// Play count of the busiest local-calendar day in each window (zero when a window is empty).
+    pub biggest_day_compared: Compared,
     /// Longest sessions first, capped at ten.
     pub top_sessions: Vec<ListeningSession>,
     /// Round-number play milestones, ascending.
@@ -212,10 +306,13 @@ pub struct DiscoveryStats {
     pub window_start: EpochMillis,
     pub window_end: EpochMillis,
     pub artists_played: u32,
+    pub artists_played_compared: Compared,
     pub artists_new: u32,
     pub albums_played: u32,
+    pub albums_played_compared: Compared,
     pub albums_new: u32,
     pub tracks_played: u32,
+    pub tracks_played_compared: Compared,
     pub tracks_new: u32,
     /// Share of window plays whose track was heard before the window (`0.0..=1.0`).
     pub repeat_rate: f32,
@@ -300,16 +397,31 @@ pub struct WrappedReport {
     pub window_start: EpochMillis,
     /// Exclusive end of the window (epoch millis).
     pub window_end: EpochMillis,
+    /// IANA timezone used to align the current and preceding windows to local midnights.
+    pub timezone: String,
     pub total_plays: u32,
+    pub total_plays_compared: Compared,
     pub total_ms_played: u64,
+    pub total_ms_played_compared: Compared,
     pub unique_tracks: u32,
+    pub unique_tracks_compared: Compared,
     pub unique_artists: u32,
+    pub unique_artists_compared: Compared,
+    pub unique_albums: u32,
+    pub unique_albums_compared: Compared,
     pub top_artists: Vec<TopItem>,
     pub top_tracks: Vec<TopItem>,
     pub top_albums: Vec<TopItem>,
     /// Top genres by play count. `id` is a stable hash of the genre name (genres aren't catalog
     /// entities), and `image_url` is always `None`.
     pub top_genres: Vec<TopItem>,
+    /// Continuous decade axis from the earliest dated album played through the current decade.
+    pub decades: Vec<DecadeBucket>,
+    /// Share of plays whose album release date cannot be resolved (`0.0..=1.0`).
+    pub undated_release_share: f32,
+    /// Album genres over the same local-calendar buckets used by listening charts.
+    pub genre_trend: GenreTrend,
+    pub fingerprint: FingerprintReport,
 }
 
 /// Which kind of catalog entity a per-entity stats query is about.
@@ -437,7 +549,17 @@ pub struct RecentPlay {
     /// matched the catalog — which is why this cannot double as the list key.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub track_id: Option<Uuid>,
+    /// Resolved primary artist id, when the scrobble matched the catalog.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub artist_id: Option<Uuid>,
+    /// Resolved album id, when the scrobble matched the catalog.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub album_id: Option<Uuid>,
     pub title: String,
     pub artist: String,
+    /// Catalog cover resolved like history rows: track cover first, then album cover, through the
+    /// Hub image endpoint.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub image_url: Option<String>,
     pub played_at: EpochMillis,
 }

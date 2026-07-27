@@ -12,6 +12,9 @@ use crate::{EpochMillis, Uuid};
 #[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export))]
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 pub enum Period {
+    /// The current local day plus the one before it — "what have I been listening to today".
+    /// Bucketed hourly rather than daily, since a one-day window has only one daily bucket.
+    Day,
     /// Trailing 7 days.
     Week,
     /// Trailing 30 days (~1 month).

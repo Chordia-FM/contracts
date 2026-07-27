@@ -42,6 +42,14 @@ pub struct ListeningEvent {
     pub event_id: Uuid,
     /// Identity of what was played (resolved to the canonical catalog server-side).
     pub fingerprint: TrackFingerprint,
+    /// Track title exactly as reported by the client. Optional for compatibility with older clients;
+    /// resolved events can fall back to the canonical catalog title.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub title: Option<String>,
+    /// Artist display string exactly as reported by the client. This is deliberately distinct from
+    /// `fingerprint.artist_norm`, which is only a fuzzy-matching key.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub artist: Option<String>,
     /// When playback started (epoch millis, client clock).
     pub started_at: EpochMillis,
     /// Milliseconds actually played.

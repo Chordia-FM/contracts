@@ -342,6 +342,24 @@ pub struct ChartEntry {
     pub global_plays: Option<u64>,
 }
 
+/// One page of a listener's full ranked library. Offset-paged rather than keyset: the ranking is
+/// dense and recomputed per window, so there is no stable cursor to page from, and a reader jumping
+/// to "page 7" expects ranks 121–140 rather than wherever a cursor happened to land.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export))]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+pub struct ChartPage {
+    pub kind: EntityKind,
+    pub period: Period,
+    pub window_start: EpochMillis,
+    pub window_end: EpochMillis,
+    /// Distinct entities of this kind the listener played in the window — the denominator behind
+    /// "#7 of 412", and what tells the client whether another page exists.
+    pub total: u32,
+    pub offset: u32,
+    pub entries: Vec<ChartEntry>,
+}
+
 /// A ranked item whose position changed between adjacent reporting windows.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export))]

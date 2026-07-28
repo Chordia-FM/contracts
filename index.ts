@@ -37,6 +37,7 @@ export * from "./bindings/CatalogSyncResponse";
 export * from "./bindings/CapabilityAction";
 export * from "./bindings/CapabilityClaims";
 export * from "./bindings/ChartEntry";
+export * from "./bindings/ChartPage";
 export * from "./bindings/ClaimedJob";
 export * from "./bindings/ClientMessage";
 export * from "./bindings/ClientType";

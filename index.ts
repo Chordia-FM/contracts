@@ -78,6 +78,8 @@ export * from "./bindings/FriendRequest";
 export * from "./bindings/FriendScrobble";
 export * from "./bindings/Friendship";
 export * from "./bindings/FriendshipStatus";
+export * from "./bindings/GenreDetail";
+export * from "./bindings/GenreSummary";
 export * from "./bindings/GenreTrend";
 export * from "./bindings/GenreTrendBucket";
 export * from "./bindings/HeartbeatRequest";

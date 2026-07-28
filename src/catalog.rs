@@ -530,6 +530,44 @@ pub struct AlbumDetail {
     pub tracks: Vec<BrowseTrack>,
 }
 
+/// One genre in the browse grid. Spellings are folded (see `slug`), so "hip hop", "Hip-Hop" and
+/// "hip-hop" arrive as a single row.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export))]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+pub struct GenreSummary {
+    /// Fold key: lowercased, non-alphanumerics collapsed to single spaces. The URL segment.
+    pub slug: String,
+    /// The most common spelling among the folded variants, for display.
+    pub name: String,
+    pub album_count: u32,
+    pub artist_count: u32,
+    /// Cover of the most-played album carrying this genre, as the tile's art.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub image_url: Option<String>,
+}
+
+/// A genre page: the artists, albums and tracks that carry it, ranked by plays across the hub —
+/// the shape a listener expects from a tag page.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export))]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+pub struct GenreDetail {
+    pub slug: String,
+    pub name: String,
+    /// Every spelling folded into this genre, so the page can be honest about what it merged.
+    #[serde(default)]
+    pub variants: Vec<String>,
+    pub album_count: u32,
+    pub artist_count: u32,
+    #[serde(default)]
+    pub top_artists: Vec<BrowseArtist>,
+    #[serde(default)]
+    pub top_albums: Vec<BrowseAlbum>,
+    #[serde(default)]
+    pub top_tracks: Vec<BrowseTrack>,
+}
+
 /// A music label in the browse-by-label index.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export))]

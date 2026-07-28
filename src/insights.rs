@@ -455,6 +455,23 @@ pub enum EntityKind {
     Album,
     Track,
 }
+/// Whose listening an entity page is reporting on.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export))]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+#[serde(rename_all = "snake_case")]
+pub enum StatsScope {
+    /// The requesting listener's own plays.
+    Me,
+    /// Every listener on the hub, over the same window.
+    Global,
+}
+
+impl Default for StatsScope {
+    fn default() -> Self {
+        Self::Me
+    }
+}
 
 /// A user's personal listening stats for one catalog entity (artist/album/track). This is the data
 /// behind the "your stats" panels on the catalog detail pages.
@@ -463,6 +480,10 @@ pub enum EntityKind {
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 pub struct EntityStats {
     pub kind: EntityKind,
+    /// Whose plays these figures cover. Echoed back so a page can label itself honestly rather
+    /// than trusting the toggle it sent.
+    #[serde(default)]
+    pub scope: StatsScope,
     pub id: Uuid,
     pub period: Period,
     pub window_start: EpochMillis,
@@ -496,6 +517,8 @@ pub struct EntityStats {
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 pub struct EntityBreakdown {
     pub kind: EntityKind,
+    #[serde(default)]
+    pub scope: StatsScope,
     pub id: Uuid,
     pub period: Period,
     pub window_start: EpochMillis,

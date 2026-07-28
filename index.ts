@@ -160,6 +160,7 @@ export * from "./bindings/SmartPlaylist";
 export * from "./bindings/SmartPlaylistDetail";
 export * from "./bindings/SmartRules";
 export * from "./bindings/SmartSort";
+export * from "./bindings/StatsScope";
 export * from "./bindings/Streak";
 export * from "./bindings/StreamQuery";
 export * from "./bindings/SuggestionFieldInput";

@@ -22,8 +22,29 @@ jobs:
       - run: cargo fmt --all --check
       - run: cargo clippy --all-targets -- -D warnings
       - run: cargo test --all
+
+      # Both optional feature flags must compile: `ts` (ts-rs bindings) and `openapi`
+      # (utoipa::ToSchema derives the backend relies on to emit its OpenAPI spec).
+      - run: cargo build --features openapi
+
+      # index.ts must surface every binding (re-export or hand-written override) and carry no stale
+      # re-exports. Cheap static check, run against the committed tree BEFORE regenerating.
+      - name: index.ts <-> bindings consistency
+        run: node scripts/check-bindings.mjs
+
       - name: Generate TypeScript bindings
         run: cargo test --features ts
+
+      # The two recurring footguns this boundary has: a wire type changed but the committed bindings
+      # were not regenerated, and a binding was added or removed but index.ts was not updated. CI
+      # generated the bindings but never compared them, so drift passed silently.
+      - name: Fail if bindings drifted from the Rust source
+        run: |
+          if ! git diff --quiet -- bindings; then
+            echo "::error::Committed ./bindings are stale. Run 'npm run generate' and commit the result."
+            git diff -- bindings
+            exit 1
+          fi
 
   publish:
     needs: [rust]

@@ -10,12 +10,15 @@
 //! ## Policy ("moderate")
 //! - Split on `;` (independent credits / serialised multi-value tags).
 //! - Within a credit, split on `feat.` / `ft.` / `featuring`; the featured remainder is further
-//!   split on `&` and `,`.
-//! - The primary (pre-`feat`) part is split on commas (a comma between two credited people is
-//!   the common case, e.g. `"Mac Miller, Phonte"`), with two guards so band names survive:
+//!   split on `&`, `,` and `/`.
+//! - The primary (pre-`feat`) part is split on `,`, ` & ` and `/` (all three appear between two
+//!   credited people — `"Mac Miller, Phonte"`, `"MGK/Cassie"`), with three guards so real names
+//!   survive:
 //!   1. a segment led by an article or connective is treated as a continuation of the previous name
-//!      (so `"Tyler, The Creator"` / `"Florence & the Machine"` stay whole), and
-//!   2. a small list of well-known band names ([`BAND_EXCEPTIONS`]) is never split.
+//!      (so `"Tyler, The Creator"` / `"Florence & the Machine"` stay whole),
+//!   2. a slash between two short tokens belongs to the name, not between names (so `"AC/DC"` and
+//!      `"S/T"` stay whole) — see [`slash_separator`], and
+//!   3. a small list of well-known band names ([`BAND_EXCEPTIONS`]) is never split.
 //!
 //! String heuristics can't be perfect. `"Vince Staples & Larry Fisherman"` (two artists) and
 //! `"Simon & Garfunkel"` (one duo) are indistinguishable from the text alone. The authoritative
@@ -24,6 +27,7 @@
 //! a user correct any miss.
 
 /// Well-known single-artist names that legitimately contain `,` or `&`; never split these.
+/// (Slash-bearing names like `"AC/DC"` need no entry — [`slash_separator`] handles them by shape.)
 /// Compared case-insensitively against the trimmed primary string. (Names of the form
 /// `"X & The Y"` / `"X, The Y"` don't need listing because the continuation guard keeps them whole;
 /// only `"X & Y"` / `"X, Y"` duos that are actually one act need an entry.)
@@ -56,10 +60,11 @@ fn clean_name(s: &str) -> String {
         .to_string()
 }
 
-/// Split a primary credit into individual artist names on `,` and ` & `. A segment led by an article
-/// or conjunction (e.g. `", The Creator"`, `" & the Machine"`) is re-joined to the previous name as a
-/// continuation, names in [`BAND_EXCEPTIONS`] are returned whole, and `&` without surrounding spaces
-/// (e.g. `"R&B"`) is never a split point.
+/// Split a primary credit into individual artist names on `,`, ` & ` and `/`. A segment led by an
+/// article or conjunction (e.g. `", The Creator"`, `" & the Machine"`) is re-joined to the previous
+/// name as a continuation, names in [`BAND_EXCEPTIONS`] are returned whole, `&` without surrounding
+/// spaces (e.g. `"R&B"`) is never a split point, and a slash inside a name (`"AC/DC"`) is left alone
+/// by [`slash_separator`].
 ///
 /// The continuation test used to be "does this segment start with a lowercase letter", which decided
 /// artist IDENTITY from TYPOGRAPHY and got it wrong in both directions. Artists who style their names
@@ -77,23 +82,22 @@ fn split_primary(primary: &str) -> Vec<String> {
         return vec![clean_name(trimmed)];
     }
 
-    // Tokenize into (separator-before, segment) pairs, splitting on the earliest of `,` or ` & `.
+    // Tokenize into (separator-before, segment) pairs, splitting on the earliest of `,`, ` & `, `/`.
     let mut segments: Vec<(&str, &str)> = Vec::new();
     let mut sep_before = "";
     let mut rest = trimmed;
     loop {
-        let comma = rest.find(',');
-        let amp = rest.find(" & ");
-        // `cut`/`sep_len` index the source; `sep` is the canonical form used to rejoin continuations.
-        let (cut, sep_len, sep) = match (comma, amp) {
-            (Some(c), Some(a)) if c < a => (c, 1, ", "),
-            (Some(_), Some(a)) => (a, 3, " & "),
-            (Some(c), None) => (c, 1, ", "),
-            (None, Some(a)) => (a, 3, " & "),
-            (None, None) => {
-                segments.push((sep_before, rest));
-                break;
-            }
+        // Each candidate is (byte offset, separator length, canonical form used to rejoin a
+        // continuation). The earliest one wins.
+        let candidates = [
+            rest.find(',').map(|i| (i, 1, ", ")),
+            rest.find(" & ").map(|i| (i, 3, " & ")),
+            slash_separator(rest).map(|i| (i, 1, "/")),
+        ];
+        let Some((cut, sep_len, sep)) = candidates.into_iter().flatten().min_by_key(|(i, ..)| *i)
+        else {
+            segments.push((sep_before, rest));
+            break;
         };
         segments.push((sep_before, &rest[..cut]));
         sep_before = sep;
@@ -118,6 +122,49 @@ fn split_primary(primary: &str) -> Vec<String> {
         .map(|p| clean_name(p))
         .filter(|s| !s.is_empty())
         .collect()
+}
+
+/// Byte offset of the first `/` that separates two artists, or `None` if every slash in `s` belongs
+/// inside a name.
+///
+/// ID3 has used `/` as a multi-value separator since v2.2, so taggers emit `"MGK/Cassie"` and
+/// `"MGK/Bun B/Dub-o"` meaning several credited artists — and treating those as one name minted a
+/// combined artist row per collaborator, about twenty of them from a single library.
+///
+/// The one name that must survive is `AC/DC`, and the spacing trick used for `&` (require ` & `, so
+/// `R&B` is safe) is no help here: these tags have no spaces around the slash either. What does
+/// separate them is length. An initialism split by a slash is short on both sides — `AC`/`DC`,
+/// `S/T` — where a real credit has at least one substantial side. So a slash flanked by two tokens
+/// of at most two characters is part of the name; anything else divides two artists. That is
+/// structural rather than a name list, so it also holds when `AC/DC` appears mid-string, which a
+/// whole-string exception could not do.
+fn slash_separator(s: &str) -> Option<usize> {
+    s.char_indices()
+        .filter(|(_, c)| *c == '/')
+        .map(|(i, _)| i)
+        .find(|&i| {
+            // The adjacent tokens, bounded by spaces and other slashes.
+            let before = s[..i].rsplit([' ', '/']).next().unwrap_or("");
+            let after = s[i + 1..].split([' ', '/']).next().unwrap_or("");
+            if before.is_empty() || after.is_empty() {
+                return false; // a dangling slash separates nothing
+            }
+            let short = |t: &str| t.chars().count() <= 2;
+            !(short(before) && short(after))
+        })
+}
+
+/// Split one name on its genuine artist-separating slashes (see [`slash_separator`]). Returns the
+/// input untouched when it holds none, so `"AC/DC"` stays whole.
+fn slash_parts(s: &str) -> Vec<&str> {
+    let mut out = Vec::new();
+    let mut rest = s;
+    while let Some(i) = slash_separator(rest) {
+        out.push(&rest[..i]);
+        rest = &rest[i + 1..];
+    }
+    out.push(rest);
+    out
 }
 
 /// Leading words that make a segment a CONTINUATION of the name before it rather than a new artist:
@@ -171,6 +218,9 @@ fn split_credit(credit: &str) -> Vec<String> {
         names.extend(
             featured
                 .split(['&', ','])
+                // Same slash rule as the primary half, so `"feat. MGK/Cassie"` is two artists while
+                // `"feat. AC/DC"` stays one.
+                .flat_map(slash_parts)
                 .map(clean_name)
                 .filter(|s| !s.is_empty()),
         );
@@ -264,6 +314,43 @@ mod tests {
         );
         assert_eq!(split_artists("aespa, NCT"), vec!["aespa", "NCT"]);
         assert_eq!(primary_artist("mgk, phem"), "mgk");
+    }
+
+    /// ID3 has used `/` as a multi-value separator since v2.2, so a slash between credits is a real
+    /// artist boundary. Not splitting on it minted a combined row per collaborator — "MGK/Cassie",
+    /// "MGK/DMX", "MGK/Bun B/Dub-o" and about twenty more from one library.
+    #[test]
+    fn slash_separates_credited_artists() {
+        assert_eq!(split_artists("MGK/Cassie"), vec!["MGK", "Cassie"]);
+        assert_eq!(split_artists("MGK/DMX"), vec!["MGK", "DMX"]);
+        assert_eq!(
+            split_artists("MGK/Bun B/Dub-o"),
+            vec!["MGK", "Bun B", "Dub-o"]
+        );
+        assert_eq!(
+            split_artists("Miles Davis/John Coltrane"),
+            vec!["Miles Davis", "John Coltrane"]
+        );
+        assert_eq!(
+            split_artists("Drake feat. MGK/Cassie"),
+            vec!["Drake", "MGK", "Cassie"]
+        );
+        assert_eq!(primary_artist("MGK/Alex Fritts"), "MGK");
+    }
+
+    /// The counterweight: a slash flanked by two short tokens is inside the name. `&` is protected by
+    /// requiring spaces around it, which is no help here — these tags have no spaces either way — so
+    /// the guard keys on length instead. It must hold wherever the name appears.
+    #[test]
+    fn slash_inside_a_name_is_not_a_separator() {
+        assert_eq!(split_artists("AC/DC"), vec!["AC/DC"]);
+        assert_eq!(split_artists("S/T"), vec!["S/T"]);
+        assert_eq!(
+            split_artists("AC/DC & Guns N' Roses"),
+            vec!["AC/DC", "Guns N' Roses"]
+        );
+        assert_eq!(split_artists("Drake feat. AC/DC"), vec!["Drake", "AC/DC"]);
+        assert_eq!(primary_artist("AC/DC"), "AC/DC");
     }
 
     /// The mirror of the above, and the case the old rule broke in the other direction: a capitalised

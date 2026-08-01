@@ -456,21 +456,16 @@ pub enum EntityKind {
     Track,
 }
 /// Whose listening an entity page is reporting on.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
 #[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export))]
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[serde(rename_all = "snake_case")]
 pub enum StatsScope {
     /// The requesting listener's own plays.
+    #[default]
     Me,
     /// Every listener on the hub, over the same window.
     Global,
-}
-
-impl Default for StatsScope {
-    fn default() -> Self {
-        Self::Me
-    }
 }
 
 /// A user's personal listening stats for one catalog entity (artist/album/track). This is the data

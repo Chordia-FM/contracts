@@ -13,8 +13,8 @@
 //!   split on `&` and `,`.
 //! - The primary (pre-`feat`) part is split on commas (a comma between two credited people is
 //!   the common case, e.g. `"Mac Miller, Phonte"`), with two guards so band names survive:
-//!   1. a segment beginning with a lowercase word is treated as a continuation of the previous name
-//!      (so `"Tyler, the Creator"` / `"Florence & the Machine"` stay whole), and
+//!   1. a segment led by an article or connective is treated as a continuation of the previous name
+//!      (so `"Tyler, The Creator"` / `"Florence & the Machine"` stay whole), and
 //!   2. a small list of well-known band names ([`BAND_EXCEPTIONS`]) is never split.
 //!
 //! String heuristics can't be perfect. `"Vince Staples & Larry Fisherman"` (two artists) and
@@ -25,8 +25,8 @@
 
 /// Well-known single-artist names that legitimately contain `,` or `&`; never split these.
 /// Compared case-insensitively against the trimmed primary string. (Names of the form
-/// `"X & the Y"` / `"X, the Y"` don't need listing because the lowercase-continuation guard keeps
-/// them whole; only `"X & Y"` / `"X, Y"` duos that are actually one act need an entry.)
+/// `"X & The Y"` / `"X, The Y"` don't need listing because the continuation guard keeps them whole;
+/// only `"X & Y"` / `"X, Y"` duos that are actually one act need an entry.)
 const BAND_EXCEPTIONS: &[&str] = &[
     // comma-bearing
     "earth, wind & fire",
@@ -56,10 +56,21 @@ fn clean_name(s: &str) -> String {
         .to_string()
 }
 
-/// Split a primary credit into individual artist names on `,` and ` & `. A segment whose first
-/// word is lowercase (e.g. `", the Creator"`, `" & the Machine"`) is re-joined to the previous name
-/// (with its original separator) as a continuation, and names in [`BAND_EXCEPTIONS`] are returned
-/// whole. `&` without surrounding spaces (e.g. `"R&B"`) is never a split point.
+/// Split a primary credit into individual artist names on `,` and ` & `. A segment led by an article
+/// or conjunction (e.g. `", The Creator"`, `" & the Machine"`) is re-joined to the previous name as a
+/// continuation, names in [`BAND_EXCEPTIONS`] are returned whole, and `&` without surrounding spaces
+/// (e.g. `"R&B"`) is never a split point.
+///
+/// The continuation test used to be "does this segment start with a lowercase letter", which decided
+/// artist IDENTITY from TYPOGRAPHY and got it wrong in both directions. Artists who style their names
+/// in lower case were welded onto whoever preceded them — `"mgk, phem"` came through as the single
+/// artist `"mgk, phem"`, and `"will.i.am, apl.de.ap"` likewise — while `"Tyler, The Creator"` was torn
+/// into two artists because its `The` is capitalised. That second case is the very example the old
+/// doc comment gave, written as `", the Creator"`; the real name capitalises it.
+///
+/// Matching a leading article instead is what was always meant. It is case-insensitive, so
+/// `"Tyler, The Creator"` holds together, and it says nothing about the casing of a real name, so
+/// `"phem"` and `"apl.de.ap"` are correctly their own artists.
 fn split_primary(primary: &str) -> Vec<String> {
     let trimmed = primary.trim();
     if BAND_EXCEPTIONS.contains(&trimmed.to_ascii_lowercase().as_str()) {
@@ -89,19 +100,14 @@ fn split_primary(primary: &str) -> Vec<String> {
         rest = &rest[cut + sep_len..];
     }
 
-    // A lowercase-led segment continues the previous name (rejoined with its original separator).
+    // An article-led segment continues the previous name (rejoined with its original separator).
     let mut out: Vec<String> = Vec::new();
     for (sep, seg) in segments {
         let seg = seg.trim();
         if seg.is_empty() {
             continue;
         }
-        let starts_lower = seg
-            .chars()
-            .next()
-            .map(|c| c.is_lowercase())
-            .unwrap_or(false);
-        if starts_lower && !out.is_empty() {
+        if is_continuation(seg) && !out.is_empty() {
             let last = out.last_mut().expect("non-empty");
             *last = format!("{last}{sep}{seg}");
         } else {
@@ -112,6 +118,35 @@ fn split_primary(primary: &str) -> Vec<String> {
         .map(|p| clean_name(p))
         .filter(|s| !s.is_empty())
         .collect()
+}
+
+/// Leading words that make a segment a CONTINUATION of the name before it rather than a new artist:
+/// `"Tyler, The Creator"`, `"Florence & the Machine"`, `"Bob Marley & the Wailers"`. These are
+/// articles and connectives, never an artist name on their own, so a segment starting with one
+/// cannot be a separate credit. Deliberately small — every entry is a word that reads as a fragment.
+const CONTINUATION_LEADERS: &[&str] = &[
+    "the", "a", "an", "his", "her", "their", "its", "los", "las", "les", "la", "le", "el", "die",
+    "der", "das", "il", "de", "het", "os", "as",
+];
+
+/// Does `segment` continue the previous name instead of naming a new artist?
+fn is_continuation(segment: &str) -> bool {
+    segment
+        .split_whitespace()
+        .next()
+        .map(|w| {
+            let w: String = w
+                .chars()
+                .filter(|c| c.is_alphanumeric())
+                .flat_map(char::to_lowercase)
+                .collect();
+            // A bare leader with nothing after it ("Earth, The") is not a continuation of anything
+            // useful; require the segment to carry a real word too.
+            !w.is_empty()
+                && CONTINUATION_LEADERS.contains(&w.as_str())
+                && segment.split_whitespace().count() > 1
+        })
+        .unwrap_or(false)
 }
 
 /// Is `token` a "featuring" marker (allowing a leading `(` and trailing `.`/`)`)?
@@ -214,6 +249,46 @@ mod tests {
             primary_artist("Vince Staples & Larry Fisherman"),
             "Vince Staples"
         );
+    }
+
+    /// A collaborator styling their name in lower case is still a separate artist. The old rule read
+    /// a leading lowercase letter as "this continues the previous name", so `"mgk, phem"` reached the
+    /// Hub as one artist literally called `"mgk, phem"` and got its own row and its own two tracks.
+    #[test]
+    fn lowercase_styled_collaborators_still_split() {
+        assert_eq!(split_artists("mgk, phem"), vec!["mgk", "phem"]);
+        assert_eq!(split_artists("mgk & phem"), vec!["mgk", "phem"]);
+        assert_eq!(
+            split_artists("will.i.am, apl.de.ap"),
+            vec!["will.i.am", "apl.de.ap"]
+        );
+        assert_eq!(split_artists("aespa, NCT"), vec!["aespa", "NCT"]);
+        assert_eq!(primary_artist("mgk, phem"), "mgk");
+    }
+
+    /// The mirror of the above, and the case the old rule broke in the other direction: a capitalised
+    /// article is still an article, so this is ONE artist. The old doc comment cited this very name
+    /// but spelled it `", the Creator"` — with the real capital `T`, the splitter tore it in half.
+    #[test]
+    fn capitalised_article_holds_the_name_together() {
+        assert_eq!(
+            split_artists("Tyler, The Creator"),
+            vec!["Tyler, The Creator"]
+        );
+        assert_eq!(
+            split_artists("Tyler, the Creator"),
+            vec!["Tyler, the Creator"]
+        );
+        assert_eq!(primary_artist("Tyler, The Creator"), "Tyler, The Creator");
+        for band in [
+            "Florence & the Machine",
+            "Bob Marley & the Wailers",
+            "Nick Cave & the Bad Seeds",
+            "Selena Gomez & the Scene",
+            "Huey Lewis & the News",
+        ] {
+            assert_eq!(split_artists(band), vec![band], "{band} must stay whole");
+        }
     }
 
     #[test]

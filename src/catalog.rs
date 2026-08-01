@@ -182,6 +182,19 @@ pub struct SyncTrack {
     pub title: String,
     pub artist: String,
     pub artist_normalized: String,
+    /// MusicBrainz id of the PRIMARY credited artist, from the file's `MusicBrainz Artist Id` tag.
+    ///
+    /// Artist identity used to cross this wire as name strings alone, so the Hub could only match on
+    /// a name — and a name is not an identity. An album tagged with an artist's former name
+    /// normalizes to something the current row does not equal, so ingest missed it and minted a
+    /// duplicate; two different artists sharing a name collided the other way. The library had this
+    /// id all along (`artists.mbid`, from `metadata.rs`) and already ships it over a DIFFERENT wire
+    /// (`UpgradeProposal.artist_mbid`), so the omission here was a gap, not a data limitation.
+    ///
+    /// Optional because plenty of files carry no MusicBrainz tags at all; when it is absent the Hub
+    /// falls back to the name matching it has always done.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub artist_mbid: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub album: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]

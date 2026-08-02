@@ -3,8 +3,12 @@
 **/*.rs.bk
 *.pdb
 
-# Generated TypeScript bindings are emitted on demand (cargo test --features ts)
-/bindings/
+# ./bindings is GENERATED (cargo test --features ts) but deliberately COMMITTED, not ignored.
+# It is the published surface of this package (package.json "files") and the frontend resolves
+# @chordia/contracts straight to ./index.ts, which re-exports every file in there. Ignoring it broke
+# three things at once, silently: frontend CI could not typecheck (TS2307 on all 193 re-exports),
+# this repo's own check-bindings step crashed with ENOENT, and the "did you forget to regen" gate
+# (git diff --quiet -- bindings) could never fire because there was nothing tracked to diff.
 
 # Env & secrets
 .env

@@ -12,6 +12,12 @@ use crate::Uuid;
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 pub struct DailyMixDetail {
     pub seed_artist_id: Uuid,
+    /// The seed artist's display name on its own.
+    ///
+    /// `title` is already "<Artist> Radio" / "<Artist> Mix", and that is not decomposable in a
+    /// locale-safe way — so the breadcrumb trail cannot split it into `Artist > Radio` by trimming a
+    /// suffix. Carrying the bare name costs one field and avoids a second request.
+    pub seed_artist_name: String,
     pub title: String,
     pub subtitle: String,
     #[serde(default, skip_serializing_if = "Option::is_none")]

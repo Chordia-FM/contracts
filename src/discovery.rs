@@ -69,6 +69,11 @@ pub enum RecentKind {
 pub struct RecentItem {
     pub kind: RecentKind,
     pub id: Uuid,
+    /// MusicBrainz id of the album's release-group / the artist, when known. Carried so a menu on a
+    /// "Jump back in" card can link straight into the Manager instead of falling back to a name
+    /// search — the source rows already have it. Always None for playlists.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub mbid: Option<String>,
     pub name: String,
     /// Secondary line (e.g. the album's artist), when there is one.
     #[serde(default, skip_serializing_if = "Option::is_none")]

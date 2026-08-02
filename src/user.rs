@@ -64,6 +64,44 @@ fn default_true() -> bool {
     true
 }
 
+/// Who may see one profile surface. Used for the per-surface visibility knobs in
+/// [`UserSettings`].
+///
+/// This is shape-identical to [`ScrobblePrivacy`] on purpose — see the note there for why the two
+/// must not be merged.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
+#[serde(rename_all = "snake_case")]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export))]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+pub enum Audience {
+    /// Visible to anyone.
+    Public,
+    /// Visible only to accepted friends (the default for most surfaces).
+    #[default]
+    Friends,
+    /// Visible to no one but the user.
+    Private,
+}
+
+/// One external link on a user's profile.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export))]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+pub struct ProfileLink {
+    /// Free-text kind (e.g. `bandcamp`, `website`), used to pick an icon. Unknown kinds render generically.
+    pub kind: String,
+    pub url: String,
+}
+
+/// Instance-level capability flags the client needs before it renders social surfaces.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export))]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+pub struct InstanceInfo {
+    /// Whether the follow graph and public profiles are enabled on this instance.
+    pub social_enabled: bool,
+}
+
 /// Profile fields the user can edit. Omitted fields are left unchanged.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export))]
@@ -76,10 +114,27 @@ pub struct UpdateProfile {
     /// New unique handle. Validated server-side; omitted leaves the handle unchanged.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub handle: Option<String>,
+    /// Short free-text profile bio.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub bio: Option<String>,
+    /// Content hash of an uploaded banner image (from the Hub image endpoint), not a URL.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub banner_hash: Option<String>,
+    /// Full replacement list of profile links. Omitted leaves the existing links unchanged; an
+    /// empty vec clears them.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub links: Option<Vec<ProfileLink>>,
 }
 
-/// Who may see a user's listening activity (recent-scrobble feed, taste compatibility). Defaults to
-/// `Friends` so sharing is opt-in beyond one's friends.
+/// Who may see a user's listening activity (recent-scrobble feed, top artists, taste
+/// compatibility). Defaults to `Friends` so sharing is opt-in beyond one's friends.
+///
+/// **This IS the listening-history / top-artists visibility control** — enforced in
+/// `backend/src/api/v1/insights.rs`. Do not add a separate `history_visibility` knob.
+///
+/// The duplication with [`Audience`] is DELIBERATE and the two must not be merged: this enum's TS
+/// binding and its `scrobble_privacy` key in the stored `user_settings` JSONB payload are
+/// load-bearing across the frontend and in SQL (`payload->>'scrobble_privacy'`).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
 #[serde(rename_all = "snake_case")]
 #[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export))]
@@ -114,7 +169,9 @@ pub struct UserSettings {
     /// Whether to receive transactional email notifications (e.g. a friend request). Default on.
     #[serde(default = "yes")]
     pub email_notifications: bool,
-    /// Accent within the neon family: `pink`, `blue`, `purple`, or `green`.
+    /// Accent preset name, hue-ordered: `crimson`, `ember`, `amber`, `lime`, `green`, `teal`,
+    /// `blue`, `indigo`, `purple`, `magenta`, or `pink` (the default). An unrecognized value is
+    /// used verbatim as a CSS colour.
     #[serde(default = "default_accent")]
     pub accent: String,
     /// Where the app opens by default: `app` or `library`.
@@ -146,6 +203,25 @@ pub struct UserSettings {
     /// The user's saved custom EQ presets.
     #[serde(default)]
     pub eq_presets: Vec<EqPreset>,
+    /// Who may see the user's profile page at all.
+    #[serde(default = "default_audience_friends")]
+    pub profile_visibility: Audience,
+    /// Who may see the list of accounts following this user.
+    #[serde(default = "default_audience_friends")]
+    pub followers_visibility: Audience,
+    /// Who may see the list of accounts this user follows.
+    #[serde(default = "default_audience_friends")]
+    pub following_visibility: Audience,
+    /// Who may see this user's public playlists on their profile. Defaults to `Private`: a
+    /// playlist's own `PlaylistVisibility` opts it in, this only widens the *shelf*.
+    #[serde(default = "default_audience_private")]
+    pub playlists_visibility: Audience,
+    /// Who may see the artists this user follows.
+    #[serde(default = "default_audience_friends")]
+    pub followed_artists_visibility: Audience,
+    /// Whether other users may follow this account without asking. Default on.
+    #[serde(default = "yes")]
+    pub open_to_follows: bool,
 }
 
 impl Default for UserSettings {
@@ -165,12 +241,26 @@ impl Default for UserSettings {
             crossfade_seconds: 0,
             eq: EqConfig::default(),
             eq_presets: Vec::new(),
+            profile_visibility: default_audience_friends(),
+            followers_visibility: default_audience_friends(),
+            following_visibility: default_audience_friends(),
+            playlists_visibility: default_audience_private(),
+            followed_artists_visibility: default_audience_friends(),
+            open_to_follows: true,
         }
     }
 }
 
 fn default_preload() -> u32 {
     2
+}
+
+fn default_audience_friends() -> Audience {
+    Audience::Friends
+}
+
+fn default_audience_private() -> Audience {
+    Audience::Private
 }
 
 /// One parametric EQ band: a peaking filter at `freq` Hz with `gain` dB and quality factor `q`.

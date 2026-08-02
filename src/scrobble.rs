@@ -64,6 +64,9 @@ pub struct ListeningEvent {
     /// Room the track was heard in, when applicable.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub room_id: Option<Uuid>,
+    /// Playlist the track was played from, when the play originated in a playlist context.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub playlist_id: Option<Uuid>,
 }
 
 /// A batch flush of buffered events (`POST /v1/scrobbles:batch`). Clients buffer offline and

@@ -569,12 +569,98 @@ pub struct PublicProfile {
     pub user: PublicUser,
     /// When the account was created (epoch millis).
     pub created_at: EpochMillis,
-    /// True when the viewer may not see this user's listening activity.
+    /// True when the viewer may not see this user's **listening activity** — `total_plays`,
+    /// `top_artists`, `top_tracks` and `recent` are then empty. Kept under its original name for
+    /// compatibility; it says nothing about the profile's other surfaces, which carry their own
+    /// visibility signals below.
     pub private: bool,
     pub total_plays: u32,
     pub top_artists: Vec<TopItem>,
     pub top_tracks: Vec<TopItem>,
     pub recent: Vec<RecentPlay>,
+    /// Free-text profile bio.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub bio: Option<String>,
+    /// Resolved banner image URL (the Hub image endpoint), when one is set.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub banner_url: Option<String>,
+    #[serde(default)]
+    pub links: Vec<crate::user::ProfileLink>,
+    #[serde(default)]
+    pub follower_count: u32,
+    #[serde(default)]
+    pub following_count: u32,
+    #[serde(default)]
+    pub playlist_count: u32,
+    /// The viewer follows this account.
+    #[serde(default)]
+    pub viewer_follows: bool,
+    /// This account follows the viewer.
+    #[serde(default)]
+    pub follows_viewer: bool,
+    /// Friendship edge between viewer and this account, when one exists.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub friendship: Option<crate::social::FriendshipStatus>,
+    /// Whether the viewer may follow this account (false when already following, when it is their
+    /// own profile, or when the target is not open to follows).
+    #[serde(default)]
+    pub can_follow: bool,
+    /// Whether the viewer may open the followers list.
+    #[serde(default)]
+    pub followers_visible: bool,
+    /// Whether the viewer may open the following list.
+    #[serde(default)]
+    pub following_visible: bool,
+    /// The user's playlists. **The `Option` IS the visibility signal**: `None` means the viewer may
+    /// not see this surface at all (render nothing), `Some([])` means it is visible and empty
+    /// (render the empty state). The client never decides visibility — the server has already
+    /// applied `playlists_visibility` and each playlist's own `PlaylistVisibility`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub playlists: Option<Vec<crate::catalog::Playlist>>,
+    /// The user's followed artists, with the same `None` = not visible / `Some([])` = visible and
+    /// empty contract as `playlists`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub followed_artists: Option<Vec<crate::social::ProfileArtist>>,
+}
+
+/// Listening stats for one playlist, behind `GET /v1/playlists/{id}/stats`.
+///
+/// Deliberately its own type rather than a widened [`EntityKind`]: a playlist is not a catalog
+/// entity, and the entity path switches exhaustively over the kind on both sides.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export))]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+pub struct PlaylistStats {
+    pub id: Uuid,
+    pub period: Period,
+    pub window_start: EpochMillis,
+    pub window_end: EpochMillis,
+    pub granularity: BucketGranularity,
+    /// Whose plays these figures cover. Echoed back so a panel can label itself honestly rather
+    /// than trusting the toggle it sent.
+    #[serde(default)]
+    pub scope: StatsScope,
+    pub total_plays: u32,
+    pub total_ms_played: u64,
+    /// First/last play attributed to this playlist (epoch millis). `None` if never played.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub first_played: Option<EpochMillis>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub last_played: Option<EpochMillis>,
+    /// Distinct listeners in the window. Only meaningful — and only populated — for
+    /// `StatsScope::Global`; always `None` for `Me`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub unique_listeners: Option<u32>,
+    /// Hub-wide all-time plays from the playlist's global rollup. `None` until the rollup has a row.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub global_plays: Option<u64>,
+    /// Local-calendar play trend (chronological), for a sparkline.
+    pub trend: Vec<TimeBucket>,
+    /// Most-played tracks *from this playlist* in the window.
+    pub top_tracks: Vec<TopItem>,
+    /// When playlist attribution began (epoch millis). Plays recorded before this have no playlist
+    /// context and can never be attributed, so the UI must state the limitation.
+    pub tracking_since: EpochMillis,
 }
 
 /// Lightweight "recently played" feed item for the home view.

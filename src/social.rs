@@ -75,6 +75,49 @@ pub struct FriendRequest {
     pub target_handle: String,
 }
 
+/// One row in a followers / following list, carrying the viewer's relationship to that account so
+/// the row can render its own follow button without a second round trip.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export))]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+pub struct FollowUser {
+    pub user: PublicUser,
+    /// The viewer follows this account.
+    pub viewer_follows: bool,
+    /// This account follows the viewer.
+    pub follows_viewer: bool,
+    /// The viewer and this account are accepted friends.
+    pub is_friend: bool,
+}
+
+/// One page of a followers / following list.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export))]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+pub struct FollowPage {
+    pub items: Vec<FollowUser>,
+    /// Total edges, so the header can show a count without walking every page.
+    pub total: u32,
+    /// Offset to request next. `None` when this is the last page.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub next_offset: Option<u32>,
+}
+
+/// An artist on a user's profile "followed artists" shelf. Identity is the MBID because a followed
+/// artist need not exist in this Hub's catalog.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export))]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+pub struct ProfileArtist {
+    pub artist_mbid: String,
+    pub name: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub image_url: Option<String>,
+    /// Local catalog id when the artist resolves here, so the card can link internally.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub artist_id: Option<Uuid>,
+}
+
 /// A discovery hit when searching for people to add.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export))]

@@ -43,6 +43,44 @@ pub struct SessionInfo {
     pub current: bool,
 }
 
+/// Read-only account overview for the settings Account/Security tabs (`GET /v1/me/account`).
+/// Deliberately separate from `UserProfile`, which is hand-built in several places and returned
+/// from several endpoints — widening it has a far larger blast radius than a dedicated DTO.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export))]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+pub struct AccountInfo {
+    /// The account's email address. `None` for accounts created without one (e.g. OAuth-only).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub email: Option<String>,
+    pub email_verified: bool,
+    /// Whether a password credential exists, so the UI offers "change" vs. "set" a password.
+    pub has_password: bool,
+    pub discord_linked: bool,
+    pub totp_enabled: bool,
+    /// Number of registered passkeys. **Always 0 until passkeys ship**; it exists now so the
+    /// Security tab's shape does not change if they ever do.
+    #[serde(default)]
+    pub passkey_count: u32,
+}
+
+/// Body of the password-change endpoint.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export))]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+pub struct ChangePasswordRequest {
+    pub current_password: String,
+    pub new_password: String,
+    /// Sign every other device out after the change. Defaults to true — the safe reading of a
+    /// password change is that the old one may be compromised.
+    #[serde(default = "default_true")]
+    pub revoke_other_sessions: bool,
+}
+
+fn default_true() -> bool {
+    true
+}
+
 /// A credential request (email + password) against the Hub.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export))]

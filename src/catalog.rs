@@ -649,6 +649,22 @@ pub struct SearchResults {
     pub labels: Vec<LabelSummary>,
 }
 
+/// Who may see a playlist. `Unlisted` is link-only: not listed on the owner's profile, but
+/// viewable by anyone who has the id.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export))]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+pub enum PlaylistVisibility {
+    /// Only the owner and its collaborators (the default).
+    #[default]
+    Private,
+    /// Anyone with the link, but never surfaced in browse or on a profile.
+    Unlisted,
+    /// Listed publicly, including on the owner's profile.
+    Public,
+}
+
 /// A playlist summary (sidebar list).
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export))]
@@ -671,6 +687,9 @@ pub struct Playlist {
     /// Whether the playlist has any collaborators.
     #[serde(default)]
     pub collaborative: bool,
+    /// Who may see the playlist. Defaults to `Private` for payloads written before visibility existed.
+    #[serde(default)]
+    pub visibility: PlaylistVisibility,
 }
 
 fn default_true() -> bool {
@@ -698,4 +717,55 @@ pub struct PlaylistDetail {
     /// Users the owner has invited to collaborate.
     #[serde(default)]
     pub collaborators: Vec<crate::user::PublicUser>,
+    /// The playlist's owner, resolved server-side so the header can credit and link them.
+    pub owner: crate::user::PublicUser,
+    /// Optional free-text description shown under the title.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub description: Option<String>,
+    /// Who may see the playlist. Defaults to `Private` for payloads written before visibility existed.
+    #[serde(default)]
+    pub visibility: PlaylistVisibility,
+    /// The playlist's REAL length, counted server-side over `playlist_tracks`. Deliberately not
+    /// `tracks.len()`: `tracks` is filtered to what the viewer can actually play.
+    #[serde(default)]
+    pub track_count: u32,
+    /// Sum of the durations behind `track_count` (milliseconds), on the same unfiltered basis.
+    #[serde(default)]
+    pub total_duration_ms: u64,
+}
+
+/// Partial update for `PATCH /v1/playlists/{id}`. Every field is optional; omitted fields are left
+/// unchanged.
+///
+/// "Leave alone" vs. "clear" is expressed with an explicit `clear_description` flag rather than a
+/// `Option<Option<String>>` + `deserialize_with = "double_option"`: a double Option round-trips
+/// badly through ts-rs, which flattens it to `string | null` and loses the outer arm entirely, so
+/// TypeScript callers cannot express the distinction the Rust type claims to make. A plain flag is
+/// the same information in a shape both languages can actually spell.
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export))]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+pub struct PlaylistPatch {
+    /// New name. Rejected server-side when it trims empty.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub name: Option<String>,
+    /// New description. Ignored when `clear_description` is set.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub description: Option<String>,
+    /// Set the description back to NULL. Takes precedence over `description`.
+    #[serde(default)]
+    pub clear_description: bool,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub visibility: Option<PlaylistVisibility>,
+}
+
+/// Body of `PUT /v1/playlists/{id}/tracks/order`: the complete track order, top to bottom.
+///
+/// Ids absent from the playlist are ignored; playlist tracks absent from this list keep their
+/// current position.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export))]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+pub struct PlaylistTrackOrder {
+    pub track_ids: Vec<Uuid>,
 }

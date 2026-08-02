@@ -413,6 +413,10 @@ pub struct ArtistRelation {
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 pub struct ArtistDetail {
     pub id: Uuid,
+    /// MusicBrainz id, when known. Lets a menu link straight to the artist's Manager discography
+    /// page instead of dropping the user into a name search. Mirrors `BrowseArtist::mbid`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub mbid: Option<String>,
     pub name: String,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub image_url: Option<String>,
@@ -512,6 +516,10 @@ pub struct ArtistLabel {
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 pub struct AlbumDetail {
     pub id: Uuid,
+    /// MusicBrainz release-group id, when known. Mirrors `BrowseAlbum::mbid`, so a menu can link
+    /// straight to this release in the Manager rather than running a name search.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub mbid: Option<String>,
     pub title: String,
     pub artist: String,
     #[serde(default, skip_serializing_if = "Option::is_none")]

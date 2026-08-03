@@ -4,7 +4,21 @@
  * Who may see one profile surface. Used for the per-surface visibility knobs in
  * [`UserSettings`].
  *
- * This is shape-identical to [`ScrobblePrivacy`] on purpose — see the note there for why the two
- * must not be merged.
+ * **A ladder, and each rung includes the ones below it**: `Private` < `Friends` < `Followers` <
+ * `Public`. So `Followers` admits followers *and* friends, and `Public` admits anyone signed in.
+ *
+ * The order is deliberate and is the opposite of set size in the underlying graph. Friendship is
+ * mutual consent and following is one-directional, so neither group strictly contains the other —
+ * someone can follow you without being a friend, and a friend need never have followed you. Placing
+ * `Friends` tighter treats the closer relationship as the narrower audience, which is what the
+ * setting reads as, and matches how the older `scrobble_privacy` `friends` value already behaves.
+ *
+ * Anything wider is an explicit choice: the default is `Private`.
+ *
+ * `Public` means *any signed-in account*, not the open internet — every one of these surfaces sits
+ * behind authentication.
+ *
+ * Shape-similar to [`ScrobblePrivacy`], which has no `Followers` rung; see the note there for why
+ * the two must not be merged.
  */
-export type Audience = "public" | "friends" | "private";
+export type Audience = "private" | "friends" | "followers" | "public";

@@ -68,6 +68,9 @@ eq: EqConfig,
 eq_presets: Array<EqPreset>, 
 /**
  * Who may see the user's profile page at all.
+ *
+ * Defaults to `Private`. This is the front door — every other surface here is only reachable
+ * once it has let the viewer through — so it is the one that has to be opened deliberately.
  */
 profile_visibility: Audience, 
 /**

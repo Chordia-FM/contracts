@@ -67,20 +67,36 @@ fn default_true() -> bool {
 /// Who may see one profile surface. Used for the per-surface visibility knobs in
 /// [`UserSettings`].
 ///
-/// This is shape-identical to [`ScrobblePrivacy`] on purpose — see the note there for why the two
-/// must not be merged.
+/// **A ladder, and each rung includes the ones below it**: `Private` < `Friends` < `Followers` <
+/// `Public`. So `Followers` admits followers *and* friends, and `Public` admits anyone signed in.
+///
+/// The order is deliberate and is the opposite of set size in the underlying graph. Friendship is
+/// mutual consent and following is one-directional, so neither group strictly contains the other —
+/// someone can follow you without being a friend, and a friend need never have followed you. Placing
+/// `Friends` tighter treats the closer relationship as the narrower audience, which is what the
+/// setting reads as, and matches how the older `scrobble_privacy` `friends` value already behaves.
+///
+/// Anything wider is an explicit choice: the default is `Private`.
+///
+/// `Public` means *any signed-in account*, not the open internet — every one of these surfaces sits
+/// behind authentication.
+///
+/// Shape-similar to [`ScrobblePrivacy`], which has no `Followers` rung; see the note there for why
+/// the two must not be merged.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
 #[serde(rename_all = "snake_case")]
 #[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export))]
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 pub enum Audience {
-    /// Visible to anyone.
-    Public,
-    /// Visible only to accepted friends (the default for most surfaces).
+    /// Visible to no one but the user. The default — anything wider is opted into.
     #[default]
-    Friends,
-    /// Visible to no one but the user.
     Private,
+    /// Visible to accepted (mutual) friends.
+    Friends,
+    /// Visible to anyone who follows the user, and to friends.
+    Followers,
+    /// Visible to any signed-in account.
+    Public,
 }
 
 /// One external link on a user's profile.
@@ -204,7 +220,10 @@ pub struct UserSettings {
     #[serde(default)]
     pub eq_presets: Vec<EqPreset>,
     /// Who may see the user's profile page at all.
-    #[serde(default = "default_audience_friends")]
+    ///
+    /// Defaults to `Private`. This is the front door — every other surface here is only reachable
+    /// once it has let the viewer through — so it is the one that has to be opened deliberately.
+    #[serde(default = "default_audience_private")]
     pub profile_visibility: Audience,
     /// Who may see the list of accounts following this user.
     #[serde(default = "default_audience_friends")]
@@ -241,7 +260,7 @@ impl Default for UserSettings {
             crossfade_seconds: 0,
             eq: EqConfig::default(),
             eq_presets: Vec::new(),
-            profile_visibility: default_audience_friends(),
+            profile_visibility: default_audience_private(),
             followers_visibility: default_audience_friends(),
             following_visibility: default_audience_friends(),
             playlists_visibility: default_audience_private(),

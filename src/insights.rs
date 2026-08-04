@@ -574,6 +574,20 @@ pub struct PublicProfile {
     /// compatibility; it says nothing about the profile's other surfaces, which carry their own
     /// visibility signals below.
     pub private: bool,
+    /// **The whole profile is withheld** — the viewer may not see this account at all, and every
+    /// field below is a placeholder rather than a fact.
+    ///
+    /// Distinct from `private`, which walls only the listening activity. The two are different
+    /// walls with different copy: conflating them produces a page announcing "this profile is
+    /// private" while showing the person's bio, banner and links.
+    ///
+    /// Explicit rather than inferred. The locked shell is a zeroed DTO, and a genuinely visible
+    /// profile can produce a byte-identical one — a new account with default settings, no bio and
+    /// no followers, or ANY profile on an instance with the social layer switched off. A client
+    /// guessing from field shape therefore walls real profiles, which is precisely the "client
+    /// decides visibility" mistake the rest of this DTO is shaped to prevent.
+    #[serde(default)]
+    pub hidden: bool,
     pub total_plays: u32,
     pub top_artists: Vec<TopItem>,
     pub top_tracks: Vec<TopItem>,

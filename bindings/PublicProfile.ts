@@ -23,7 +23,22 @@ created_at: bigint,
  * compatibility; it says nothing about the profile's other surfaces, which carry their own
  * visibility signals below.
  */
-private: boolean, total_plays: number, top_artists: Array<TopItem>, top_tracks: Array<TopItem>, recent: Array<RecentPlay>, 
+private: boolean, 
+/**
+ * **The whole profile is withheld** — the viewer may not see this account at all, and every
+ * field below is a placeholder rather than a fact.
+ *
+ * Distinct from `private`, which walls only the listening activity. The two are different
+ * walls with different copy: conflating them produces a page announcing "this profile is
+ * private" while showing the person's bio, banner and links.
+ *
+ * Explicit rather than inferred. The locked shell is a zeroed DTO, and a genuinely visible
+ * profile can produce a byte-identical one — a new account with default settings, no bio and
+ * no followers, or ANY profile on an instance with the social layer switched off. A client
+ * guessing from field shape therefore walls real profiles, which is precisely the "client
+ * decides visibility" mistake the rest of this DTO is shaped to prevent.
+ */
+hidden: boolean, total_plays: number, top_artists: Array<TopItem>, top_tracks: Array<TopItem>, recent: Array<RecentPlay>, 
 /**
  * Free-text profile bio.
  */

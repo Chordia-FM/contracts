@@ -39,6 +39,7 @@ pub mod lyrics;
 pub mod manager;
 pub mod overrides;
 pub mod pins;
+pub mod radio;
 pub mod room;
 pub mod scrobble;
 pub mod smart;

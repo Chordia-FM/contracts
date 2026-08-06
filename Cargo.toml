@@ -20,6 +20,11 @@ ts-rs = { version = "12", optional = true, features = ["uuid-impl"] }
 # served OpenAPI spec reuses these canonical types; off by default for lean library/dj builds.
 utoipa = { version = "5", optional = true, features = ["uuid"] }
 
+[dev-dependencies]
+# Wire-shape assertions only (a field that must be OMITTED, not sent as null/empty, is invisible to
+# the type system). Dev-only, so consumers of this crate never pull it.
+serde_json = "1"
+
 [features]
 default = []
 # `cargo test --features ts` emits TypeScript into ./bindings for @chordia/contracts.

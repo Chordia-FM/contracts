@@ -92,6 +92,8 @@ export * from "./bindings/HeartbeatRequest";
 export * from "./bindings/HeartbeatResponse";
 export * from "./bindings/HistoryEntry";
 export * from "./bindings/HistoryPage";
+export * from "./bindings/IdentifyRequest";
+export * from "./bindings/IdentifyResponse";
 export * from "./bindings/InstanceInfo";
 export * from "./bindings/JobCandidates";
 export * from "./bindings/JobClaimRequest";

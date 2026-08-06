@@ -4,4 +4,17 @@ import type { SmartRules } from "./SmartRules";
 /**
  * A smart playlist summary.
  */
-export type SmartPlaylist = { id: string, name: string, created_at: bigint, rules: SmartRules, };
+export type SmartPlaylist = { id: string, name: string, created_at: bigint, rules: SmartRules, 
+/**
+ * Minutes between automatic refreshes; [`SMART_REFRESH_NEVER`] (`0`) = manual only.
+ */
+refresh_interval_minutes: number, 
+/**
+ * When the snapshot was last successfully rebuilt. `None` = never resolved yet. A FAILED
+ * refresh does not move this, so a stale stamp is a visible symptom rather than a lie.
+ */
+refreshed_at: bigint | null, 
+/**
+ * Tracks in the current snapshot, without hydrating them.
+ */
+track_count: number, };

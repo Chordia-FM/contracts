@@ -3,6 +3,14 @@ import type { BrowseTrack } from "./BrowseTrack";
 import type { SmartRules } from "./SmartRules";
 
 /**
- * A smart playlist with its currently-resolved tracks.
+ * A smart playlist with its materialised tracks.
  */
-export type SmartPlaylistDetail = { id: string, name: string, rules: SmartRules, tracks: Array<BrowseTrack>, };
+export type SmartPlaylistDetail = { id: string, name: string, rules: SmartRules, tracks: Array<BrowseTrack>, 
+/**
+ * Minutes between automatic refreshes; [`SMART_REFRESH_NEVER`] (`0`) = manual only.
+ */
+refresh_interval_minutes: number, 
+/**
+ * When the snapshot was last successfully rebuilt. `None` = never resolved yet.
+ */
+refreshed_at: bigint | null, };

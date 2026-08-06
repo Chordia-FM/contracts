@@ -172,6 +172,7 @@ export * from "./bindings/SmartMatch";
 export * from "./bindings/SmartOp";
 export * from "./bindings/SmartPlaylist";
 export * from "./bindings/SmartPlaylistDetail";
+export * from "./bindings/SmartRefreshResult";
 export * from "./bindings/SmartRules";
 export * from "./bindings/SmartSort";
 export * from "./bindings/Station";

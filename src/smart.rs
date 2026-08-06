@@ -1,6 +1,10 @@
 //! Smart (rule-based, auto-updating) playlist contracts. A smart playlist stores a set of rules
-//! that the Hub resolves to tracks on demand, so it stays current as the catalog and the user's
-//! listening change.
+//! that the Hub resolves to tracks and MATERIALISES as a snapshot, so every reader — page load,
+//! queue, another device — sees the same list until it is refreshed.
+//!
+//! Refresh happens on three occasions: when the rules are saved, when the owner presses refresh
+//! ([`SmartRefreshResult`] reports the diff), and on the owner's [`SmartPlaylist::refresh_interval_minutes`]
+//! schedule. `0` on that field means never, i.e. manual-only.
 
 use serde::{Deserialize, Serialize};
 
@@ -91,6 +95,17 @@ pub struct SmartRules {
     pub limit: Option<u32>,
 }
 
+/// How often the Hub re-runs a playlist's rules on its own, in minutes. `0` is the explicit
+/// "never" — the playlist then only changes when its owner edits the rules or presses refresh.
+pub const SMART_REFRESH_NEVER: u32 = 0;
+/// The interval a playlist gets when its owner never chose one.
+pub const SMART_REFRESH_DEFAULT_MINUTES: u32 = 60;
+/// Floor on a non-zero interval. Resolution is a catalog-wide scan, so a one-minute schedule would
+/// buy nothing a manual press does not.
+pub const SMART_REFRESH_MIN_MINUTES: u32 = 15;
+/// Ceiling on a non-zero interval (one week). Past this, "never" is the honest setting.
+pub const SMART_REFRESH_MAX_MINUTES: u32 = 10_080;
+
 /// A smart playlist summary.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export))]
@@ -100,9 +115,19 @@ pub struct SmartPlaylist {
     pub name: String,
     pub created_at: EpochMillis,
     pub rules: SmartRules,
+    /// Minutes between automatic refreshes; [`SMART_REFRESH_NEVER`] (`0`) = manual only.
+    #[serde(default)]
+    pub refresh_interval_minutes: u32,
+    /// When the snapshot was last successfully rebuilt. `None` = never resolved yet. A FAILED
+    /// refresh does not move this, so a stale stamp is a visible symptom rather than a lie.
+    #[serde(default)]
+    pub refreshed_at: Option<EpochMillis>,
+    /// Tracks in the current snapshot, without hydrating them.
+    #[serde(default)]
+    pub track_count: u32,
 }
 
-/// A smart playlist with its currently-resolved tracks.
+/// A smart playlist with its materialised tracks.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export))]
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
@@ -111,4 +136,25 @@ pub struct SmartPlaylistDetail {
     pub name: String,
     pub rules: SmartRules,
     pub tracks: Vec<BrowseTrack>,
+    /// Minutes between automatic refreshes; [`SMART_REFRESH_NEVER`] (`0`) = manual only.
+    #[serde(default)]
+    pub refresh_interval_minutes: u32,
+    /// When the snapshot was last successfully rebuilt. `None` = never resolved yet.
+    #[serde(default)]
+    pub refreshed_at: Option<EpochMillis>,
+}
+
+/// What one refresh actually changed. Returned by the manual refresh so the button can say
+/// something true — including "nothing changed", which is a result and not a failure.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export))]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+pub struct SmartRefreshResult {
+    /// Tracks now in the playlist that were not in the previous snapshot.
+    pub added: u32,
+    /// Tracks that were in the previous snapshot and no longer match.
+    pub removed: u32,
+    /// Size of the new snapshot.
+    pub total: u32,
+    pub refreshed_at: EpochMillis,
 }

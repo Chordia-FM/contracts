@@ -422,6 +422,15 @@ pub struct ArtistDetail {
     pub image_url: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub banner_url: Option<String>,
+    /// Intrinsic pixel width of `banner_url`'s image, when the Hub knows it.
+    ///
+    /// The banner is rendered edge-to-edge with a `srcSet`, and a `Nw` descriptor is a PROMISE about
+    /// the candidate's real width — the browser picks on that number without ever measuring the
+    /// file. Banner art comes from fanart.tv at whatever size the uploader chose, so a hard-coded
+    /// descriptor is a guess, and guessing high makes the browser choose a small file for a wide
+    /// slot and upscale it. Absent means "unknown": emit no `srcSet` rather than an invented one.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub banner_width: Option<u32>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub bio: Option<String>,
     #[serde(default)]

@@ -13,7 +13,17 @@ export type ArtistDetail = { id: string,
  * MusicBrainz id, when known. Lets a menu link straight to the artist's Manager discography
  * page instead of dropping the user into a name search. Mirrors `BrowseArtist::mbid`.
  */
-mbid?: string | null, name: string, image_url?: string | null, banner_url?: string | null, bio?: string | null, genres: Array<string>, 
+mbid?: string | null, name: string, image_url?: string | null, banner_url?: string | null, 
+/**
+ * Intrinsic pixel width of `banner_url`'s image, when the Hub knows it.
+ *
+ * The banner is rendered edge-to-edge with a `srcSet`, and a `Nw` descriptor is a PROMISE about
+ * the candidate's real width — the browser picks on that number without ever measuring the
+ * file. Banner art comes from fanart.tv at whatever size the uploader chose, so a hard-coded
+ * descriptor is a guess, and guessing high makes the browser choose a small file for a wide
+ * slot and upscale it. Absent means "unknown": emit no `srcSet` rather than an invented one.
+ */
+banner_width?: number | null, bio?: string | null, genres: Array<string>, 
 /**
  * Distinct listeners across the Hub in the last ~30 days.
  */

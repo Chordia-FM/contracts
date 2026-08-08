@@ -256,6 +256,18 @@ pub struct ClaimedJob {
     /// Empty when the Hub has no cached tracklist (verification is then skipped).
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub expected_titles: Vec<String>,
+    /// The same tracklist with everything else the Hub already knows about each track: the canonical
+    /// title, its length, and its MusicBrainz identity.
+    ///
+    /// `expected_titles` can only answer "is this roughly the right release". Lengths answer a
+    /// question titles cannot: a full-album rip uploaded as ONE file named after the album's title
+    /// track satisfies every title check ever written, and is 50 minutes long where the track is 3.
+    /// The identity fields exist so an import can be stamped with what was known when the job was
+    /// queued, instead of trusting whatever the uploader typed into the tags.
+    ///
+    /// Empty when the Hub has no cached tracklist, exactly like `expected_titles`.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub expected_tracks: Vec<ExpectedTrack>,
     /// For a single-TRACK download (`kind="track"`): the exact title(s) to import. The library then
     /// imports ONLY the matching file(s) from the grabbed release — not the whole album — and rejects a
     /// release that doesn't contain the track (so downloading one bonus track can't dump a whole,
@@ -398,4 +410,29 @@ pub struct AcquisitionGrab {
     pub rg_mbid: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub display_title: Option<String>,
+}
+
+/// One track of the release a download job targets, as MusicBrainz has it.
+///
+/// Everything here was known at the moment the job was queued. Carrying it to the library is what
+/// lets an import be verified against, and stamped with, the release it was actually asked for.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export))]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+pub struct ExpectedTrack {
+    /// Canonical title from MusicBrainz — not from the uploader's tags.
+    pub title: String,
+    /// Track length. `None` when MusicBrainz has no duration for the recording.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub length_ms: Option<u32>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub recording_mbid: Option<String>,
+    /// The recording's ISRC, which is what lyrics are keyed by.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub isrc: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub disc_no: Option<u16>,
+    /// Position on its medium (1-based).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub position: Option<u16>,
 }

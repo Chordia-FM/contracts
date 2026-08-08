@@ -70,6 +70,7 @@ export * from "./bindings/EqBand";
 export * from "./bindings/EqConfig";
 export * from "./bindings/EqPreset";
 export * from "./bindings/ExclusionsUpdate";
+export * from "./bindings/ExpectedTrack";
 export * from "./bindings/ExtArtistDetail";
 export * from "./bindings/ExtRecording";
 export * from "./bindings/ExtReleaseGroup";

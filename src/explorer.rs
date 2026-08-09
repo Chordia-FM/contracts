@@ -26,6 +26,13 @@ pub enum ColumnKind {
     Image,
     /// A JSON blob. Shown collapsed; the row detail expands it.
     Json,
+    /// A binary column. The SIZE travels, never the payload.
+    ///
+    /// This exists because of a live incident: `images.bytes` is the image itself, it was declared
+    /// `Number`, and `bytes::text` shipped the hex encoding of every image on the page — tens of
+    /// megabytes per request, and `Number("\\x89504e...")` is `NaN`. A binary column has no
+    /// display form, so the only honest thing to send is how big it is.
+    Bytes,
 }
 
 /// One column of a browsable table.
@@ -58,6 +65,9 @@ pub struct ExplorerTable {
     /// The image column, when the table has one.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub image_column: Option<String>,
+    /// What the table costs on disk, indexes and TOAST included.
+    #[serde(default)]
+    pub size_bytes: i64,
 }
 
 /// One row, as display values.
@@ -81,7 +91,13 @@ pub struct ExplorerRow {
 pub struct ExplorerPage {
     pub table: ExplorerTable,
     pub rows: Vec<ExplorerRow>,
-    /// Rows matching the filter. Exact — the pages are small and an operator paging to the end of a
-    /// wrong estimate is worse than the count.
+    /// Rows matching the filter, counted up to a cap.
+    ///
+    /// Exact below the cap, because an operator paging to the end of a wrong estimate is worse than
+    /// the count. Capped above it, because an exact `count(*)` behind every keystroke of a filter is
+    /// a sequential scan the explorer has no business asking for.
     pub total: i64,
+    /// `total` hit the cap and the real figure is higher. Rendered as `10,000+`.
+    #[serde(default)]
+    pub total_capped: bool,
 }

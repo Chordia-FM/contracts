@@ -20,4 +20,8 @@ title_column: string,
 /**
  * The image column, when the table has one.
  */
-image_column?: string | null, };
+image_column?: string | null, 
+/**
+ * What the table costs on disk, indexes and TOAST included.
+ */
+size_bytes: bigint, };

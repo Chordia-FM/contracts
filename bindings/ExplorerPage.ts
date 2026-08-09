@@ -7,7 +7,14 @@ import type { ExplorerTable } from "./ExplorerTable";
  */
 export type ExplorerPage = { table: ExplorerTable, rows: Array<ExplorerRow>, 
 /**
- * Rows matching the filter. Exact — the pages are small and an operator paging to the end of a
- * wrong estimate is worse than the count.
+ * Rows matching the filter, counted up to a cap.
+ *
+ * Exact below the cap, because an operator paging to the end of a wrong estimate is worse than
+ * the count. Capped above it, because an exact `count(*)` behind every keystroke of a filter is
+ * a sequential scan the explorer has no business asking for.
  */
-total: bigint, };
+total: bigint, 
+/**
+ * `total` hit the cap and the real figure is higher. Rendered as `10,000+`.
+ */
+total_capped: boolean, };

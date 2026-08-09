@@ -6,4 +6,4 @@
  * The client cannot infer this: a `TEXT` column holding a sha256 and one holding a display name
  * are the same type on the wire, and only the table definition knows which is which.
  */
-export type ColumnKind = "text" | "number" | "bool" | "timestamp" | "uuid" | "image" | "json";
+export type ColumnKind = "text" | "number" | "bool" | "timestamp" | "uuid" | "image" | "json" | "bytes";

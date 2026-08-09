@@ -10,4 +10,4 @@ export type ExplorerPage = { table: ExplorerTable, rows: Array<ExplorerRow>,
  * Rows matching the filter. Exact — the pages are small and an operator paging to the end of a
  * wrong estimate is worse than the count.
  */
-total: bigint, queried_at_ms: bigint, };
+total: bigint, };

@@ -7,8 +7,6 @@
 
 use serde::{Deserialize, Serialize};
 
-use crate::EpochMillis;
-
 /// How a column should be rendered, decided server-side from what it actually holds.
 ///
 /// The client cannot infer this: a `TEXT` column holding a sha256 and one holding a display name
@@ -86,5 +84,4 @@ pub struct ExplorerPage {
     /// Rows matching the filter. Exact — the pages are small and an operator paging to the end of a
     /// wrong estimate is worse than the count.
     pub total: i64,
-    pub queried_at_ms: EpochMillis,
 }

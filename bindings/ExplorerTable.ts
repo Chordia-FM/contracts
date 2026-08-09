@@ -10,9 +10,19 @@ export type ExplorerTable = {
  */
 key: string, label: string, 
 /**
- * Roughly how many rows, from the planner's statistics rather than a count.
+ * How many rows, counted up to a cap rather than estimated.
+ *
+ * This was `reltuples`, the planner's estimate, and it was wrong in the way estimates are
+ * always wrong at small scale: `reltuples` is -1 until ANALYZE has run on the table, so a
+ * three-row table reported zero. An operator cannot tell a real zero from an unanalyzed one,
+ * which makes the whole figure worthless. A capped count is exact where it matters and honest
+ * where it stops.
  */
-approx_rows: bigint, columns: Array<ExplorerColumn>, 
+row_count: bigint, 
+/**
+ * `row_count` hit the cap and the real figure is higher.
+ */
+row_count_capped: boolean, columns: Array<ExplorerColumn>, 
 /**
  * The column whose value titles a row in the detail view.
  */

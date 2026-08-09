@@ -57,8 +57,17 @@ pub struct ExplorerTable {
     /// The key the API takes. Never a raw table name from the caller.
     pub key: String,
     pub label: String,
-    /// Roughly how many rows, from the planner's statistics rather than a count.
-    pub approx_rows: i64,
+    /// How many rows, counted up to a cap rather than estimated.
+    ///
+    /// This was `reltuples`, the planner's estimate, and it was wrong in the way estimates are
+    /// always wrong at small scale: `reltuples` is -1 until ANALYZE has run on the table, so a
+    /// three-row table reported zero. An operator cannot tell a real zero from an unanalyzed one,
+    /// which makes the whole figure worthless. A capped count is exact where it matters and honest
+    /// where it stops.
+    pub row_count: i64,
+    /// `row_count` hit the cap and the real figure is higher.
+    #[serde(default)]
+    pub row_count_capped: bool,
     pub columns: Vec<ExplorerColumn>,
     /// The column whose value titles a row in the detail view.
     pub title_column: String,

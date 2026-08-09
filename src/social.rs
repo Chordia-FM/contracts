@@ -18,6 +18,47 @@ pub struct NowPlayingReport {
     pub album: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub image_url: Option<String>,
+    /// Stable, client-minted id for the device that sent this. Opaque to the Hub - it exists only so
+    /// a client can tell ITS OWN report apart from one sent by another of the user's devices.
+    ///
+    /// One id per browser profile / app install, NOT per tab: tabs of the same browser already
+    /// coordinate over `BroadcastChannel`, and giving them separate ids would make one person look
+    /// like two devices playing at once.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub device_id: Option<String>,
+    /// Human label for that device ("Chrome on Android"). Display only, and only ever shown back to
+    /// the user who sent it.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub device_label: Option<String>,
+}
+
+/// The caller's OWN live now-playing entry.
+///
+/// This is what lets a signed-in browser say "playing on your phone" instead of "not playing": the
+/// Hub already holds one ephemeral entry per user, and this hands the user back their own.
+///
+/// Not to be confused with [`crate::room::NowPlaying`], which is a listening-room broadcast, or with
+/// [`FriendNowPlaying`], which is somebody else's.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export))]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+pub struct DeviceNowPlaying {
+    /// Which device reported it. `None` for a report that predates device ids - a client that
+    /// cannot attribute an entry must assume it is its own rather than claim a phantom device.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub device_id: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub device_label: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub track_id: Option<Uuid>,
+    pub title: String,
+    pub artist: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub album: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub image_url: Option<String>,
+    /// When the report landed (epoch millis).
+    pub started_at: EpochMillis,
 }
 
 /// A friend's currently-playing track (for the live "Listening now" feed). Only friends whose

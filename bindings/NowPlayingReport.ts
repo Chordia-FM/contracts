@@ -4,4 +4,18 @@
  * A client's report of what it's currently playing. It's ephemeral, held in memory on the Hub for
  * the live "Listening now" feed, never written to scrobble history.
  */
-export type NowPlayingReport = { track_id?: string | null, title: string, artist: string, album?: string | null, image_url?: string | null, };
+export type NowPlayingReport = { track_id?: string | null, title: string, artist: string, album?: string | null, image_url?: string | null, 
+/**
+ * Stable, client-minted id for the device that sent this. Opaque to the Hub - it exists only so
+ * a client can tell ITS OWN report apart from one sent by another of the user's devices.
+ *
+ * One id per browser profile / app install, NOT per tab: tabs of the same browser already
+ * coordinate over `BroadcastChannel`, and giving them separate ids would make one person look
+ * like two devices playing at once.
+ */
+device_id?: string | null, 
+/**
+ * Human label for that device ("Chrome on Android"). Display only, and only ever shown back to
+ * the user who sent it.
+ */
+device_label?: string | null, };

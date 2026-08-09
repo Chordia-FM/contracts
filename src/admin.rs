@@ -173,8 +173,13 @@ pub struct AdminTopEntity {
     /// Artist for an album/track, absent for an artist.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub subtitle: Option<String>,
+    /// A Hub-relative path (`/v1/images/{hash}`), NOT a bare hash.
+    ///
+    /// Every other browse DTO does the same, and the client's `imageUrl()` prefixes the Hub base
+    /// onto whatever it is given — hand it a hash and it builds `https://hub/<hash>`, which 404s
+    /// silently as a broken image rather than as an error.
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub image_hash: Option<String>,
+    pub image_url: Option<String>,
     pub plays: i64,
 }
 

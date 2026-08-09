@@ -7,4 +7,12 @@ export type AdminTopEntity = { id: string, name: string,
 /**
  * Artist for an album/track, absent for an artist.
  */
-subtitle?: string | null, image_hash?: string | null, plays: bigint, };
+subtitle?: string | null, 
+/**
+ * A Hub-relative path (`/v1/images/{hash}`), NOT a bare hash.
+ *
+ * Every other browse DTO does the same, and the client's `imageUrl()` prefixes the Hub base
+ * onto whatever it is given — hand it a hash and it builds `https://hub/<hash>`, which 404s
+ * silently as a broken image rather than as an error.
+ */
+image_url?: string | null, plays: bigint, };

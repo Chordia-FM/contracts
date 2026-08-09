@@ -21,7 +21,17 @@ category: string,
 /**
  * `user` | `artist` | `album` | `track` | `label` | `report` | `suggestion`, or absent.
  */
-target_type?: string | null, target_id?: string | null, target_label?: string | null, detail?: string | null, 
+target_type?: string | null, target_id?: string | null, target_label?: string | null, 
+/**
+ * The target's art, resolved at READ time — unlike `target_label`, which is captured at write
+ * time.
+ *
+ * The distinction is deliberate. A label is identity and must be a record of what the thing was
+ * called when the action happened; a picture is not identity, it is decoration that gets better
+ * over time, and pinning a cover from the day of an edit would freeze whatever placeholder the
+ * enrichment worker had reached by then. A deleted target simply has none.
+ */
+target_image_url?: string | null, detail?: string | null, 
 /**
  * The entity's relevant fields before and after the change, narrowed to what actually moved.
  */

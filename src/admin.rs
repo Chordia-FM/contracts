@@ -84,6 +84,15 @@ pub struct AuditEntry {
     pub target_id: Option<Uuid>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub target_label: Option<String>,
+    /// The target's art, resolved at READ time — unlike `target_label`, which is captured at write
+    /// time.
+    ///
+    /// The distinction is deliberate. A label is identity and must be a record of what the thing was
+    /// called when the action happened; a picture is not identity, it is decoration that gets better
+    /// over time, and pinning a cover from the day of an edit would freeze whatever placeholder the
+    /// enrichment worker had reached by then. A deleted target simply has none.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub target_image_url: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub detail: Option<String>,
     /// The entity's relevant fields before and after the change, narrowed to what actually moved.
@@ -347,4 +356,55 @@ pub struct AdminUserDetail {
 pub struct AdminUserPage {
     pub rows: Vec<AdminUserDetail>,
     pub total: i64,
+}
+
+/// One sign-in session.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export))]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+pub struct AdminSession {
+    pub session_id: Uuid,
+    /// Raw UA string. Rendered as-is: parsing it into "Chrome on macOS" is a guess, and an operator
+    /// chasing a suspicious session wants the actual header.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub user_agent: Option<String>,
+    pub created_at_ms: EpochMillis,
+    pub last_used_at_ms: EpochMillis,
+    /// A long-lived token — a paired device rather than a browser sign-in.
+    pub long_lived: bool,
+}
+
+/// A library this account owns, and whether its server is reachable.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export))]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+pub struct AdminUserLibrary {
+    pub id: Uuid,
+    pub name: String,
+    pub track_count: i64,
+    pub online: bool,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub last_heartbeat_ms: Option<EpochMillis>,
+}
+
+/// Everything the user-detail page renders, in one request.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export))]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+pub struct AdminUserProfile {
+    pub user: AdminUserDetail,
+    /// Total listening time, milliseconds. From the daily rollup, never the fact table.
+    pub ms_played: i64,
+    /// Distinct days with any listening at all — a better read of "is this account used" than a
+    /// play count, which one long weekend can inflate.
+    pub active_days: i64,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub first_play_ms: Option<EpochMillis>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub last_play_ms: Option<EpochMillis>,
+    pub playlists: i64,
+    pub sessions: Vec<AdminSession>,
+    pub libraries: Vec<AdminUserLibrary>,
+    /// This account's recent history as a TARGET of admin action, not as an actor.
+    pub recent_audit: Vec<AuditEntry>,
 }

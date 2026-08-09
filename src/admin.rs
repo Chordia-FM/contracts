@@ -4,9 +4,9 @@
 //! on the server, so the two could disagree and nothing would say so. They are generated from here
 //! now, like every other wire shape.
 //!
-//! Only the shapes an endpoint actually serves live here. The Overview and System payloads
-//! (`AdminOverview`, `AdminSystemHealth` and friends) arrive with the endpoints that compute them —
-//! a contract for a route that does not exist is not a placeholder, it is a promise nothing keeps.
+//! Every shape here is served by an endpoint. Nothing is declared ahead of the route that computes
+//! it — a contract for a route that does not exist is not a placeholder, it is a promise nothing
+//! keeps.
 
 use std::collections::BTreeMap;
 
@@ -135,4 +135,211 @@ pub struct AuditFacets {
 pub struct AuditActor {
     pub id: Uuid,
     pub handle: String,
+}
+
+// ── Overview ──────────────────────────────────────────────────────────────────────────────────
+
+/// One day of hub-wide activity.
+///
+/// `listeners` is what separates a busy day from one heavy listener, and it cannot be derived from
+/// `plays` — which is exactly why it is a column here rather than something the client computes.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export))]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+pub struct AdminDayPoint {
+    /// Local calendar day, `YYYY-MM-DD`. A DATE read as text: this crate's sqlx has no chrono.
+    pub day: String,
+    pub plays: i64,
+    pub listeners: i64,
+    pub ms_played: i64,
+}
+
+/// One day of signups, for the growth chart.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export))]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+pub struct AdminSignupPoint {
+    pub day: String,
+    pub signups: i64,
+}
+
+/// A hub-wide top entity, with enough to render it as more than a name.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export))]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+pub struct AdminTopEntity {
+    pub id: Uuid,
+    pub name: String,
+    /// Artist for an album/track, absent for an artist.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub subtitle: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub image_hash: Option<String>,
+    pub plays: i64,
+}
+
+/// Who is on the server.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export))]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+pub struct AdminPeople {
+    pub total: i64,
+    pub new_7d: i64,
+    pub new_30d: i64,
+    pub suspended: i64,
+    pub admins: i64,
+    pub verified: i64,
+    pub with_totp: i64,
+}
+
+/// What they are doing.
+///
+/// `dau`/`wau`/`mau` are distinct-listener counts over the trailing 1/7/30 days, read from the daily
+/// rollup — never from `listening_events`, which is the partitioned fact table and the one thing an
+/// admin refresh must not scan.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export))]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+pub struct AdminActivity {
+    pub plays_today: i64,
+    pub plays_7d: i64,
+    pub plays_30d: i64,
+    pub ms_played_30d: i64,
+    pub dau: i64,
+    pub wau: i64,
+    pub mau: i64,
+}
+
+/// What is in the catalog, and how much of the fleet is reachable.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export))]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+pub struct AdminCatalog {
+    pub artists: i64,
+    pub albums: i64,
+    pub tracks: i64,
+    pub labels: i64,
+    pub playlists: i64,
+    pub libraries: i64,
+    pub servers_online: i64,
+    pub servers_total: i64,
+}
+
+/// The Overview tab's whole payload, in one request.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export))]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+pub struct AdminOverview {
+    pub people: AdminPeople,
+    pub activity: AdminActivity,
+    pub catalog: AdminCatalog,
+    pub plays_series: Vec<AdminDayPoint>,
+    pub signups_series: Vec<AdminSignupPoint>,
+    pub top_artists: Vec<AdminTopEntity>,
+    pub top_albums: Vec<AdminTopEntity>,
+    pub top_tracks: Vec<AdminTopEntity>,
+}
+
+// ── System health ─────────────────────────────────────────────────────────────────────────────
+
+/// One background rollup and how far behind it is.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export))]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+pub struct AdminRollupStat {
+    pub name: String,
+    /// How far behind the newest event this rollup has processed, in seconds.
+    pub lag_seconds: i64,
+    pub last_event_ms: EpochMillis,
+}
+
+/// A count of download jobs in one status.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export))]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+pub struct AdminQueueStat {
+    pub status: String,
+    pub count: i64,
+}
+
+/// A table and what it costs on disk.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export))]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+pub struct AdminTableSize {
+    pub name: String,
+    pub bytes: i64,
+    pub rows: i64,
+}
+
+/// How much of the catalog is still waiting on an enrichment worker.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export))]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+pub struct AdminEnrichmentBacklog {
+    pub artists_missing_art: i64,
+    pub artists_never_enriched: i64,
+    pub tracks_missing_recording: i64,
+    pub tracks_missing_isrcs: i64,
+    pub tracks_missing_lyrics: i64,
+}
+
+/// Operator health, everything an admin would otherwise reach for psql to answer.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export))]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+pub struct AdminSystemHealth {
+    pub version: String,
+    pub migrations_applied: i64,
+    pub db_bytes: i64,
+    pub listening_events_partitions: i64,
+    pub rollups: Vec<AdminRollupStat>,
+    pub queue: Vec<AdminQueueStat>,
+    pub biggest_tables: Vec<AdminTableSize>,
+    pub enrichment: AdminEnrichmentBacklog,
+}
+
+// ── Users ─────────────────────────────────────────────────────────────────────────────────────
+
+/// One row of the admin roster, with everything the table shows.
+///
+/// Separate from [`AdminUserRow`] rather than an extension of it: that shape is also what the
+/// suspend/delete flows round-trip, and widening it would make every one of those carry seven
+/// columns they do not use.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export))]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+pub struct AdminUserDetail {
+    pub id: Uuid,
+    pub handle: String,
+    pub email: String,
+    pub display_name: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub avatar_url: Option<String>,
+    pub created_at_ms: EpochMillis,
+    pub suspended: bool,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub suspended_reason: Option<String>,
+    pub email_verified: bool,
+    pub totp_enabled: bool,
+    pub is_admin: bool,
+    pub libraries: i64,
+    pub plays: i64,
+    /// Last time any of this account's sessions was used. Absent for an account that has never
+    /// signed in since sessions were tracked.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub last_seen_ms: Option<EpochMillis>,
+}
+
+/// A page of the roster, plus the total the filters match.
+///
+/// Offset paging here, not keyset: the roster is small, sortable by any column, and an admin
+/// genuinely wants "page 3 of 7" — the properties that made keyset right for the audit log are all
+/// absent.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export))]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+pub struct AdminUserPage {
+    pub rows: Vec<AdminUserDetail>,
+    pub total: i64,
 }

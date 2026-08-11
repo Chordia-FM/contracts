@@ -109,13 +109,30 @@ pub struct ProfileLink {
     pub url: String,
 }
 
-/// Instance-level capability flags the client needs before it renders social surfaces.
+/// What a Hub says about itself to a client that has not signed in — capability flags, plus enough
+/// identity for the desktop app's hub picker.
+///
+/// Unauthenticated by necessity: the desktop app calls this on a URL the user has just typed, to
+/// answer "is this a Chordia Hub, what do we call it, and does it do Discord" before there is any
+/// account here to authenticate with. A 200 with this shape is itself the "yes, this is a Hub"
+/// check.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export))]
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 pub struct InstanceInfo {
     /// Whether the follow graph and public profiles are enabled on this instance.
     pub social_enabled: bool,
+    /// Operator-facing name, shown in the desktop hub picker. Self-hosters run several, and "Hub"
+    /// three times is not a picker.
+    pub name: String,
+    /// Hub software version, for support and for a client that wants to warn about a stale server.
+    pub version: String,
+    /// The Hub's canonical **web** frontend. The desktop app anchors the links its users copy here,
+    /// because its own origin (`https://tauri.localhost`) means nothing to whoever receives one.
+    pub frontend_url: String,
+    /// Whether "Continue with Discord" will work here. False when the operator never configured a
+    /// Discord app, and a button that leads to a 500 is worse than no button.
+    pub discord_oauth: bool,
 }
 
 /// Profile fields the user can edit. Omitted fields are left unchanged.

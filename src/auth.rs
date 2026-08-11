@@ -181,3 +181,25 @@ pub struct AuthResponse {
 pub struct RefreshRequest {
     pub refresh_token: String,
 }
+
+/// Body for `POST /v1/auth/desktop/exchange` — the last step of desktop Discord sign-in.
+///
+/// The desktop app cannot receive the web flow's redirect, so its OAuth round-trip ends at a
+/// `chordia://auth/callback` deep link. **Tokens must never travel in that URI**: any other program
+/// on the machine can register the same custom scheme, and a session handed to the wrong one is the
+/// whole account. So the deep link carries a code that is single-use, expires in a minute, and is
+/// worthless on its own — this request trades it for real tokens.
+///
+/// `verifier` is what makes "worthless on its own" true. The app invents a high-entropy string
+/// before opening the browser and sends only its SHA-256 to the Hub; the code is bound to that
+/// hash. A rogue app that intercepts the deep link has the code but never saw the verifier, so the
+/// exchange fails. (This is PKCE, applied to Chordia's own exchange rather than Discord's.)
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export))]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+pub struct DesktopExchangeRequest {
+    /// The `code` query parameter from the `chordia://auth/callback` deep link.
+    pub code: String,
+    /// The original secret whose SHA-256 was sent as `challenge` when the flow started.
+    pub verifier: String,
+}

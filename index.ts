@@ -77,6 +77,7 @@ export * from "./bindings/CoverageSummary";
 export * from "./bindings/DailyMix";
 export * from "./bindings/DailyMixDetail";
 export * from "./bindings/DecadeBucket";
+export * from "./bindings/DesktopExchangeRequest";
 export * from "./bindings/DeviceNowPlaying";
 export * from "./bindings/DiscoverArtist";
 export * from "./bindings/DiscoverReleaseGroup";

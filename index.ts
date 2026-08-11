@@ -134,6 +134,7 @@ export * from "./bindings/LabelDetail";
 export * from "./bindings/LabelSummary";
 export * from "./bindings/LastfmSessionRequest";
 export * from "./bindings/LedgerStatus";
+export * from "./bindings/LocalStatus";
 export * from "./bindings/LastfmStatus";
 export * from "./bindings/LibraryAcquisitionStatus";
 export * from "./bindings/LibraryCoverage";

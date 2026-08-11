@@ -20,4 +20,20 @@ archives: bigint,
 /**
  * Their total size. Current versions only; superseded ones are not counted.
  */
-total_bytes: bigint, };
+total_bytes: bigint, 
+/**
+ * Storage price used for [`Self::monthly_cost_usd`], per GB per month.
+ *
+ * Returned alongside the figure so the arithmetic is inspectable rather than magic, and so a
+ * reader can tell a wrong total from a wrong rate.
+ */
+rate_per_gb_usd: number, 
+/**
+ * **An estimate.** Storage only, at the rate above, on current versions.
+ *
+ * It will not match an invoice: B2 bills byte-hours rather than a month-end snapshot, egress
+ * and transaction classes are excluded, and superseded versions of the erasure ledger occupy
+ * real bytes this figure does not count. Close enough to answer "is this about to get
+ * expensive", not close enough to reconcile against a bill.
+ */
+monthly_cost_usd: number, };

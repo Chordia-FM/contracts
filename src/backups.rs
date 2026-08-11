@@ -79,11 +79,33 @@ pub struct BackupIndex {
     pub directory: String,
     /// `None` when no directory is configured at all, which is its own answer.
     #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub local: Option<LocalStatus>,
+    /// `None` when no directory is configured at all, which is its own answer.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub ledger: Option<LedgerStatus>,
     /// `None` when no read credentials are configured, so the list is the server's copies alone.
     /// Distinct from a configured remote that returned nothing, which is [`RemoteStatus::reachable`].
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub remote: Option<RemoteStatus>,
+}
+
+/// What the server's disk holds, and how much room is left on it.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export))]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+pub struct LocalStatus {
+    pub archives: i64,
+    /// Total size of the archives themselves, not of the directory.
+    pub total_bytes: i64,
+    /// Free space on the volume the backups directory lives on. `None` when it could not be read.
+    ///
+    /// The number that decides whether tonight's backup succeeds. A backup system that reports its
+    /// own size but not the room left beside it answers the less useful of the two questions.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub free_bytes: Option<i64>,
+    /// What the newest archive weighs, as the best available estimate of what the next one will.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub newest_bytes: Option<i64>,
 }
 
 /// What object storage holds, when the Hub can see it.
@@ -101,6 +123,18 @@ pub struct RemoteStatus {
     pub archives: i64,
     /// Their total size. Current versions only; superseded ones are not counted.
     pub total_bytes: i64,
+    /// Storage price used for [`Self::monthly_cost_usd`], per GB per month.
+    ///
+    /// Returned alongside the figure so the arithmetic is inspectable rather than magic, and so a
+    /// reader can tell a wrong total from a wrong rate.
+    pub rate_per_gb_usd: f64,
+    /// **An estimate.** Storage only, at the rate above, on current versions.
+    ///
+    /// It will not match an invoice: B2 bills byte-hours rather than a month-end snapshot, egress
+    /// and transaction classes are excluded, and superseded versions of the erasure ledger occupy
+    /// real bytes this figure does not count. Close enough to answer "is this about to get
+    /// expensive", not close enough to reconcile against a bill.
+    pub monthly_cost_usd: f64,
 }
 
 /// What inspecting an archive found. Produced without writing anything.

@@ -34,6 +34,16 @@ pub struct BackupFile {
     /// `.age` suffix. An unencrypted archive is a finding, not a feature: it means every credential
     /// on the instance is sitting in a file with only filesystem permissions in front of it.
     pub encrypted: bool,
+    /// Present on the Hub's disk, so it can be verified and restored from here.
+    pub local: bool,
+    /// Present in object storage. **`remote && !local` is the row that matters**: it is the copy
+    /// that survived losing the machine, and it is invisible to a listing that reads only one side.
+    pub remote: bool,
+    /// Size in object storage, when it is there. Separate from `size_bytes` rather than merged so a
+    /// disagreement between the two copies is visible instead of averaged away — same name, two
+    /// different lengths, means one of them is a truncated upload.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub remote_bytes: Option<i64>,
 }
 
 /// Whether the erasure ledger is actually being kept, and how current it is.
@@ -70,6 +80,27 @@ pub struct BackupIndex {
     /// `None` when no directory is configured at all, which is its own answer.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub ledger: Option<LedgerStatus>,
+    /// `None` when no read credentials are configured, so the list is the server's copies alone.
+    /// Distinct from a configured remote that returned nothing, which is [`RemoteStatus::reachable`].
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub remote: Option<RemoteStatus>,
+}
+
+/// What object storage holds, when the Hub can see it.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export))]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+pub struct RemoteStatus {
+    /// The listing succeeded. False means the credentials or the bucket are wrong, and the local
+    /// list is still correct — a remote that cannot be read must not make the whole tab an error.
+    pub reachable: bool,
+    /// Why not, when unreachable.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub problem: Option<String>,
+    /// Archives seen (the erasure ledger and anything else in the bucket are excluded).
+    pub archives: i64,
+    /// Their total size. Current versions only; superseded ones are not counted.
+    pub total_bytes: i64,
 }
 
 /// What inspecting an archive found. Produced without writing anything.

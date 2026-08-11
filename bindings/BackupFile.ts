@@ -17,4 +17,19 @@ created_at_ms: bigint,
  * `.age` suffix. An unencrypted archive is a finding, not a feature: it means every credential
  * on the instance is sitting in a file with only filesystem permissions in front of it.
  */
-encrypted: boolean, };
+encrypted: boolean, 
+/**
+ * Present on the Hub's disk, so it can be verified and restored from here.
+ */
+local: boolean, 
+/**
+ * Present in object storage. **`remote && !local` is the row that matters**: it is the copy
+ * that survived losing the machine, and it is invisible to a listing that reads only one side.
+ */
+remote: boolean, 
+/**
+ * Size in object storage, when it is there. Separate from `size_bytes` rather than merged so a
+ * disagreement between the two copies is visible instead of averaged away — same name, two
+ * different lengths, means one of them is a truncated upload.
+ */
+remote_bytes?: bigint | null, };

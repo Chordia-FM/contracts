@@ -189,6 +189,7 @@ export * from "./bindings/RelayRequest";
 export * from "./bindings/ReportRow";
 export * from "./bindings/ResolvedServer";
 export * from "./bindings/ResourceRef";
+export * from "./bindings/RemoteStatus";
 export * from "./bindings/RestoreReport";
 export * from "./bindings/RoomState";
 export * from "./bindings/ScrobbleBatch";

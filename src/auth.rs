@@ -182,7 +182,34 @@ pub struct RefreshRequest {
     pub refresh_token: String,
 }
 
-/// Body for `POST /v1/auth/desktop/exchange` — the last step of desktop Discord sign-in.
+/// Body for `POST /v1/auth/desktop/authorize` — hand the desktop app the session you already have.
+///
+/// The desktop app cannot see the website's session: different origin, different storage. So rather
+/// than asking someone to sign in a second time, it opens the Hub's own web frontend, where they
+/// are usually already signed in, and that page calls this to mint a one-time code for the account
+/// it is signed in as. The code goes back over the `chordia://` deep link and is redeemed by
+/// [`DesktopExchangeRequest`].
+///
+/// This is why the desktop app needs no sign-in method of its own. Whatever the website supports —
+/// password, Discord, a second factor, something added later — is what the desktop app supports,
+/// without knowing anything about any of it.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export))]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+pub struct DesktopAuthorizeRequest {
+    /// SHA-256 (lowercase hex) of the verifier the desktop app is holding.
+    pub challenge: String,
+}
+
+/// The one-time code to hand back over the deep link. Worthless without the verifier.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export))]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+pub struct DesktopAuthorizeResponse {
+    pub code: String,
+}
+
+/// Body for `POST /v1/auth/desktop/exchange` — the last step of desktop sign-in.
 ///
 /// The desktop app cannot receive the web flow's redirect, so its OAuth round-trip ends at a
 /// `chordia://auth/callback` deep link. **Tokens must never travel in that URI**: any other program

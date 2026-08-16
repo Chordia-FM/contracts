@@ -133,6 +133,13 @@ pub struct InstanceInfo {
     /// Whether "Continue with Discord" will work here. False when the operator never configured a
     /// Discord app, and a button that leads to a 500 is worse than no button.
     pub discord_oauth: bool,
+    /// The accent this deployment wears before a listener has chosen their own — a preset name or a
+    /// `#rrggbb`. `None` means the operator has not set one and the app's own default stands, which
+    /// is different from their choosing that colour: it keeps following the default if it changes.
+    ///
+    /// Public because it themes the sign-in and landing screens, which nobody is signed in to.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub accent: Option<String>,
 }
 
 /// Profile fields the user can edit. Omitted fields are left unchanged.
@@ -203,8 +210,9 @@ pub struct UserSettings {
     #[serde(default = "yes")]
     pub email_notifications: bool,
     /// Accent preset name, hue-ordered: `crimson`, `ember`, `amber`, `lime`, `green`, `teal`,
-    /// `blue`, `indigo`, `purple`, `magenta`, or `pink` (the default). An unrecognized value is
-    /// used verbatim as a CSS colour.
+    /// `blue`, `indigo`, `purple`, `magenta`, `pink`, or `default` — which is the default, and means
+    /// "follow this deployment's accent" (`InstanceInfo::accent`) rather than naming a colour. An
+    /// unrecognized value is used verbatim as a CSS colour.
     #[serde(default = "default_accent")]
     pub accent: String,
     /// Where the app opens by default: `app` or `library`.
@@ -362,7 +370,10 @@ fn yes() -> bool {
     true
 }
 fn default_accent() -> String {
-    "pink".to_string()
+    // Not a colour: the sentinel that defers to whatever the operator set for this deployment, and
+    // to the app's own accent when they set nothing. A new account inherits the site it joined
+    // rather than a hardcoded pink, and keeps following if the operator changes it.
+    "default".to_string()
 }
 fn default_surface() -> String {
     "app".to_string()

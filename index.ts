@@ -232,6 +232,7 @@ export * from "./bindings/TrackOverrideInput";
 export * from "./bindings/TrackOverrideView";
 export * from "./bindings/TranscodeTarget";
 export * from "./bindings/Trending";
+export * from "./bindings/UpdateInstanceSettings";
 export * from "./bindings/UpdateProfile";
 export * from "./bindings/UserProfile";
 export * from "./bindings/UpgradeProposal";

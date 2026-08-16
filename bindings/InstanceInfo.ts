@@ -32,4 +32,12 @@ frontend_url: string,
  * Whether "Continue with Discord" will work here. False when the operator never configured a
  * Discord app, and a button that leads to a 500 is worse than no button.
  */
-discord_oauth: boolean, };
+discord_oauth: boolean, 
+/**
+ * The accent this deployment wears before a listener has chosen their own — a preset name or a
+ * `#rrggbb`. `None` means the operator has not set one and the app's own default stands, which
+ * is different from their choosing that colour: it keeps following the default if it changes.
+ *
+ * Public because it themes the sign-in and landing screens, which nobody is signed in to.
+ */
+accent?: string | null, };

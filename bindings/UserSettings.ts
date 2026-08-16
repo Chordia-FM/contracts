@@ -28,8 +28,9 @@ scrobble_privacy: ScrobblePrivacy,
 email_notifications: boolean, 
 /**
  * Accent preset name, hue-ordered: `crimson`, `ember`, `amber`, `lime`, `green`, `teal`,
- * `blue`, `indigo`, `purple`, `magenta`, or `pink` (the default). An unrecognized value is
- * used verbatim as a CSS colour.
+ * `blue`, `indigo`, `purple`, `magenta`, `pink`, or `default` — which is the default, and means
+ * "follow this deployment's accent" (`InstanceInfo::accent`) rather than naming a colour. An
+ * unrecognized value is used verbatim as a CSS colour.
  */
 accent: string, 
 /**

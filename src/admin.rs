@@ -408,3 +408,15 @@ pub struct AdminUserProfile {
     /// This account's recent history as a TARGET of admin action, not as an actor.
     pub recent_audit: Vec<AuditEntry>,
 }
+
+/// What an admin is changing about the deployment itself. Omitted fields are left alone.
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export))]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+pub struct UpdateInstanceSettings {
+    /// A preset name or a `#rrggbb`. Explicit `null` clears it and restores the app's own default,
+    /// which is why this is a nested Option rather than a plain one — "leave it alone" and "there
+    /// should not be one" are different instructions.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub accent: Option<Option<String>>,
+}

@@ -34,6 +34,18 @@ frontend_url: string,
  */
 discord_oauth: boolean, 
 /**
+ * This deployment's Discord application id, when it has one.
+ *
+ * Also its Rich Presence application id — Discord has one identifier for both, so the desktop
+ * app publishes presence under whichever application the operator already configured for
+ * sign-in rather than carrying a second one baked in at build time.
+ *
+ * Public because it already is: this value appears in the query string of every OAuth
+ * authorize URL a browser visits. The client *secret* is the confidential half and stays on
+ * the Hub. Derived from the same config as `discord_oauth` above, so the two cannot disagree.
+ */
+discord_client_id?: string | null, 
+/**
  * The accent this deployment wears before a listener has chosen their own — a preset name or a
  * `#rrggbb`. `None` means the operator has not set one and the app's own default stands, which
  * is different from their choosing that colour: it keeps following the default if it changes.

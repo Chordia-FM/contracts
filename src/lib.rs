@@ -38,6 +38,7 @@ pub mod directory;
 pub mod discovery;
 pub mod explorer;
 pub mod identify;
+pub mod import;
 pub mod insights;
 pub mod library;
 pub mod lyrics;

@@ -6,4 +6,4 @@
  * Deliberately a flat list rather than a tier comparison at the call site: `has(SmartPlaylists)`
  * survives a tier being renamed, split or comped, where `tier >= Sonic` does not.
  */
-export type Feature = "custom_accent" | "dynamic_accent" | "name_accent" | "profile_accent" | "animated_avatar" | "smart_playlists" | "taste_match_summary" | "deep_analytics" | "csv_export" | "scrobble_editing";
+export type Feature = "custom_accent" | "dynamic_accent" | "name_accent" | "profile_accent" | "animated_avatar" | "smart_playlists" | "taste_match_summary" | "deep_analytics" | "csv_export" | "scrobble_editing" | "history_import";

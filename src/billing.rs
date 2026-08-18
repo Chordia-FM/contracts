@@ -92,6 +92,8 @@ pub enum Feature {
     CsvExport,
     /// Correcting or deleting individual plays.
     ScrobbleEditing,
+    /// Importing listening history from Spotify or Last.fm exports.
+    HistoryImport,
 }
 
 /// Everything a client needs to decide what to show. Served with the profile.

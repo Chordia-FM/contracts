@@ -27,6 +27,13 @@ pub enum Period {
     Year,
     /// All recorded history.
     Overall,
+    /// An explicit `[from, to)` range chosen by the caller (Deep Analytics). Only ever *produced*,
+    /// as the echoed `period` of a report that was requested with both `from` and `to` bounds —
+    /// `skip_deserializing` means no query can name it directly, so period-driven windows
+    /// (playlist stats, movers, discovery) can never receive it by accident. The report's real
+    /// bounds are its `window_start`/`window_end`.
+    #[serde(skip_deserializing)]
+    Custom,
 }
 
 /// A figure measured against the equivalent preceding window, so a number can be read as a trend
@@ -298,6 +305,14 @@ pub struct ListeningRecords {
     pub milestones: Vec<Milestone>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub first_scrobble: Option<Milestone>,
+    /// True when the day-grained figures could not be computed yet: the UTC report is served from
+    /// the daily rollup, and on a Hub whose aggregator has never completed a pass there is no
+    /// rollup to read. The streaks, `active_days`, the averages and `biggest_day` above are then
+    /// placeholders rather than facts, and a client should say "still being computed" instead of
+    /// rendering a zero-day history as if it were real. Sessions and milestones are unaffected
+    /// (they scan the fact table directly), as are non-UTC reports.
+    #[serde(default)]
+    pub day_stats_pending: bool,
 }
 
 /// How many distinct catalog entities were played and newly discovered in a reporting window.
@@ -557,6 +572,76 @@ pub struct Compatibility {
     pub score: f32,
     /// Artists both users have played, most-shared first (capped).
     pub shared_artists: Vec<TopItem>,
+    /// The detailed breakdown behind the score. Present only when the VIEWER's plan includes
+    /// `taste_match_summary`; omitted entirely otherwise, so the free shape is byte-identical to
+    /// what it was before the field existed.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub summary: Option<TasteSummary>,
+}
+
+/// The paid deep-dive behind a compatibility score: what two listeners share, when they both
+/// listen, and what they found at the same time. Every figure is bounded by each side's OWN
+/// retention window — a paid viewer buys no reach into a free friend's hidden history.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export))]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+pub struct TasteSummary {
+    /// Albums both have played, ranked by the smaller of the two play counts (`plays` carries that
+    /// shared strength), top 10.
+    pub shared_albums: Vec<TopItem>,
+    /// Tracks both have played, ranked and capped like `shared_albums`.
+    pub shared_tracks: Vec<TopItem>,
+    /// Album genres both have played. `id` is a stable hash of the genre name (genres aren't
+    /// catalog entities) and `image_url` is always absent.
+    pub shared_genres: Vec<TopItem>,
+    /// Album-release decades, one entry per decade on a continuous axis from the earliest decade
+    /// either side has played through the latest.
+    pub decades: Vec<DecadeSplit>,
+    /// Histogram intersection (0.0 to 1.0) of the two decade distributions: 1.0 means the same
+    /// era shares, 0.0 means no overlap at all. 0.0 when either side has no dated plays.
+    pub era_overlap: f32,
+    /// Plays by local hour of day over the trailing 90 days, exactly 24 entries (index = hour).
+    /// Each side's hours are measured in their own timezone — the comparison is "when in your day
+    /// do you each listen", not "are you awake at the same instant".
+    pub hours: Vec<HourSplit>,
+    /// Histogram intersection (0.0 to 1.0) of the two hour-of-day distributions.
+    pub time_overlap: f32,
+    /// Artists whose first listen (week-grained) happened in the same week for both sides, with at
+    /// least 5 plays each, strongest shared interest first, top 5.
+    pub discovered_together: Vec<DiscoveredTogether>,
+}
+
+/// One decade's plays, yours against theirs.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export))]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+pub struct DecadeSplit {
+    /// The decade's first year, for example `1990`.
+    pub decade: i32,
+    pub you: i64,
+    pub them: i64,
+}
+
+/// One local hour of day's plays, yours against theirs.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export))]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+pub struct HourSplit {
+    /// Local hour of day, 0 to 23.
+    pub hour: i32,
+    pub you: i64,
+    pub them: i64,
+}
+
+/// Something both listeners first played in the same week.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export))]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+pub struct DiscoveredTogether {
+    /// Display name of the shared discovery (an artist).
+    pub item: String,
+    /// The calendar month the shared first week falls in, `YYYY-MM`.
+    pub month: String,
 }
 
 /// A user's shareable public listening profile. Listening stats are populated only when the viewer

@@ -58,6 +58,15 @@ pub struct UserProfile {
     /// Whether two-factor (TOTP) auth is enabled on the account.
     #[serde(default)]
     pub totp_enabled: bool,
+    /// What this account may do. Served here so a feature gate anywhere in the client is a property
+    /// read rather than its own request — and so a gate is impossible to get wrong by inferring a
+    /// tier from a badge or a price.
+    #[serde(default)]
+    pub entitlements: crate::billing::Entitlements,
+    /// Badges shown beside this user's name. Identity, not billing: an account can carry a staff or
+    /// early-bird badge with no subscription at all.
+    #[serde(default)]
+    pub badges: Vec<crate::billing::ProfileBadge>,
 }
 
 fn default_true() -> bool {
@@ -151,6 +160,11 @@ pub struct InstanceInfo {
     /// Public because it themes the sign-in and landing screens, which nobody is signed in to.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub accent: Option<String>,
+    /// Whether this deployment sells subscriptions. False on a self-hosted Hub with no payment
+    /// provider configured — which is the default, and where every client must render no pricing,
+    /// no plan tab and no upsell at all.
+    #[serde(default)]
+    pub billing_enabled: bool,
 }
 
 /// Profile fields the user can edit. Omitted fields are left unchanged.
@@ -226,6 +240,26 @@ pub struct UserSettings {
     /// unrecognized value is used verbatim as a CSS colour.
     #[serde(default = "default_accent")]
     pub accent: String,
+    /// How the accent behaves over time. `Static` (the default) uses `accent` as-is; every other
+    /// mode needs [`crate::billing::Feature::DynamicAccent`], and the Hub serves `Static` to an
+    /// account that no longer has it rather than rewriting the stored choice — so the look comes
+    /// back intact if they resubscribe.
+    #[serde(default)]
+    pub accent_mode: AccentMode,
+    /// The colours a non-static mode cycles or blends between, and the fallback for `Artwork` when a
+    /// track has no cover. Two to six CSS colours; ignored when `accent_mode` is `Static`.
+    #[serde(default)]
+    pub accent_palette: Vec<String>,
+    /// Paint this user's display name in their accent wherever it appears. Requires
+    /// [`crate::billing::Feature::NameAccent`]; on by default so the perk is visible the moment it
+    /// is bought rather than needing to be found.
+    #[serde(default = "yes")]
+    pub name_accent: bool,
+    /// Whether OTHER people's profile accents apply while this user is viewing them. A viewer-side
+    /// opt-out, not a subject-side one: nobody should be stuck with a page colour they find
+    /// unreadable, and the person choosing the colour is not the person reading it.
+    #[serde(default = "yes")]
+    pub show_profile_accents: bool,
     /// Where the app opens by default: `app` or `library`.
     #[serde(default = "default_surface")]
     pub default_surface: String,
@@ -288,6 +322,10 @@ impl Default for UserSettings {
             scrobble_privacy: ScrobblePrivacy::default(),
             email_notifications: true,
             accent: default_accent(),
+            accent_mode: AccentMode::default(),
+            accent_palette: Vec::new(),
+            name_accent: true,
+            show_profile_accents: true,
             default_surface: default_surface(),
             locale: String::new(),
             timezone: String::new(),
@@ -304,6 +342,30 @@ impl Default for UserSettings {
             open_to_follows: true,
         }
     }
+}
+
+/// How the accent colour behaves over time.
+///
+/// Every non-`Static` mode is a paid perk AND a moving element in the app shell, which this codebase
+/// has repeatedly found to be expensive. Implementations must step on a timer (never per animation
+/// frame), pause while the tab is hidden, and collapse to `Static` under
+/// `prefers-reduced-motion: reduce`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export))]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+pub enum AccentMode {
+    /// One colour, exactly as chosen. The only mode available on the free tier.
+    #[default]
+    Static,
+    /// Cross-fade through `accent_palette`.
+    Fade,
+    /// A gradient across `accent_palette`, applied to hero surfaces rather than every token.
+    Gradient,
+    /// Follow the current track's cover art, falling back to the palette when there is none.
+    Artwork,
+    /// Rotate hue continuously through the spectrum.
+    Chroma,
 }
 
 fn default_preload() -> u32 {
@@ -400,4 +462,26 @@ pub struct PublicUser {
     pub display_name: String,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub avatar_url: Option<String>,
+    /// How to paint this user's name, when they have that perk and have left it on. Resolved by the
+    /// Hub rather than sent as "their tier", so a client can never render a flair the subject is not
+    /// entitled to, and never has to know the tier of everyone in a list.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub flair: Option<UserFlair>,
+}
+
+/// The colour treatment for an entitled user's display name.
+///
+/// Always a resolved, static colour: the subject may have chosen an accent that cycles or follows
+/// their artwork, but a name in someone else's follower list must not animate — that is a
+/// permanently painting element in a list of hundreds, which is the exact cost this app has spent
+/// sessions removing. Time-varying modes collapse to their current or first colour here.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export))]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+pub struct UserFlair {
+    /// A CSS colour.
+    pub accent: String,
+    /// Two or more stops when the user chose a gradient; empty otherwise.
+    #[serde(default)]
+    pub gradient: Vec<String>,
 }

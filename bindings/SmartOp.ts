@@ -3,4 +3,4 @@
 /**
  * How a condition compares the field to its value.
  */
-export type SmartOp = "contains" | "equals" | "gte" | "lte" | "is";
+export type SmartOp = "contains" | "equals" | "gte" | "lte" | "is" | "before" | "after" | "in_last" | "not_in_last" | "between";

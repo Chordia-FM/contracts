@@ -635,6 +635,28 @@ pub struct PublicProfile {
     /// empty contract as `playlists`.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub followed_artists: Option<Vec<crate::social::ProfileArtist>>,
+    /// Badges this account carries. Present on the locked shell too: a badge is identity, like the
+    /// handle, and withholding it would make a moderator unrecognisable on exactly the profile where
+    /// knowing they are staff matters.
+    #[serde(default)]
+    pub badges: Vec<crate::billing::ProfileBadge>,
+    /// The accent this profile paints itself in for visitors, when the owner is entitled to it and
+    /// the viewer has not opted out of seeing other people's accents.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub accent: Option<ProfileAccent>,
+}
+
+/// A profile's own colour, applied to that page only.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export))]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+pub struct ProfileAccent {
+    /// A CSS colour. Already resolved: a time-varying accent is flattened, because a visitor's page
+    /// must not animate.
+    pub primary: String,
+    /// Two or more stops when the owner chose a gradient; empty otherwise.
+    #[serde(default)]
+    pub gradient: Vec<String>,
 }
 
 /// Listening stats for one playlist, behind `GET /v1/playlists/{id}/stats`.

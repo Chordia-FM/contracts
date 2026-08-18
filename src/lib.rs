@@ -32,6 +32,7 @@ pub mod admin;
 pub mod artists;
 pub mod auth;
 pub mod backups;
+pub mod billing;
 pub mod catalog;
 pub mod directory;
 pub mod discovery;

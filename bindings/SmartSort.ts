@@ -3,4 +3,4 @@
 /**
  * Sort order for the resolved tracks.
  */
-export type SmartSort = "title" | "plays" | "random";
+export type SmartSort = "title" | "plays" | "random" | "my_plays" | "my_plays_in_period" | "added_at" | "last_played" | "release_date" | "duration";

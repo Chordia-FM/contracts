@@ -6,6 +6,11 @@ import type { SmartRules } from "./SmartRules";
  */
 export type SmartPlaylist = { id: string, name: string, created_at: bigint, rules: SmartRules, 
 /**
+ * A Phosphor icon slug, or `emoji:` + a literal emoji — the same encoding libraries use. `None`
+ * keeps the funnel that every smart playlist used to be stuck with.
+ */
+icon?: string | null, 
+/**
  * Minutes between automatic refreshes; [`SMART_REFRESH_NEVER`] (`0`) = manual only.
  */
 refresh_interval_minutes: number, 

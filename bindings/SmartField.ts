@@ -2,5 +2,9 @@
 
 /**
  * The track attribute a condition tests.
+ *
+ * The first seven are catalog facts. The rest describe the CALLER's relationship with the track —
+ * when it arrived, when they last played it, how often — which is what makes rules like "on repeat
+ * this month" or "liked but not played in a year" expressible at all.
  */
-export type SmartField = "artist" | "title" | "album" | "genre" | "year" | "plays" | "liked";
+export type SmartField = "artist" | "title" | "album" | "genre" | "year" | "plays" | "liked" | "duration" | "added_at" | "last_played" | "first_played" | "my_plays" | "release_date" | "label" | "explicit";

@@ -407,6 +407,14 @@ pub struct AdminUserProfile {
     pub libraries: Vec<AdminUserLibrary>,
     /// This account's recent history as a TARGET of admin action, not as an actor.
     pub recent_audit: Vec<AuditEntry>,
+    /// Every badge this account carries, assignable or not.
+    ///
+    /// The full list rather than just the two an admin can change, because the derived ones are
+    /// context an admin needs: whether someone is already a paying supporter changes whether comping
+    /// them a staff role is generous or redundant. The editor renders the assignable pair and shows
+    /// the rest as read-only.
+    #[serde(default)]
+    pub badges: Vec<crate::billing::ProfileBadge>,
 }
 
 /// What an admin is changing about the deployment itself. Omitted fields are left alone.

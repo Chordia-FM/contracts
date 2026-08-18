@@ -3,6 +3,7 @@ import type { AdminSession } from "./AdminSession";
 import type { AdminUserDetail } from "./AdminUserDetail";
 import type { AdminUserLibrary } from "./AdminUserLibrary";
 import type { AuditEntry } from "./AuditEntry";
+import type { ProfileBadge } from "./ProfileBadge";
 
 /**
  * Everything the user-detail page renders, in one request.
@@ -20,4 +21,13 @@ active_days: bigint, first_play_ms?: bigint | null, last_play_ms?: bigint | null
 /**
  * This account's recent history as a TARGET of admin action, not as an actor.
  */
-recent_audit: Array<AuditEntry>, };
+recent_audit: Array<AuditEntry>, 
+/**
+ * Every badge this account carries, assignable or not.
+ *
+ * The full list rather than just the two an admin can change, because the derived ones are
+ * context an admin needs: whether someone is already a paying supporter changes whether comping
+ * them a staff role is generous or redundant. The editor renders the assignable pair and shows
+ * the rest as read-only.
+ */
+badges: Array<ProfileBadge>, };

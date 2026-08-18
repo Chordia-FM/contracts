@@ -82,6 +82,7 @@ export * from "./bindings/ColumnKind";
 export * from "./bindings/Compared";
 export * from "./bindings/Compatibility";
 export * from "./bindings/CoverageSummary";
+export * from "./bindings/CreatePlaylistRequest";
 export * from "./bindings/DailyMix";
 export * from "./bindings/DailyMixDetail";
 export * from "./bindings/DecadeBucket";

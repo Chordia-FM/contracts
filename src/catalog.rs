@@ -768,6 +768,27 @@ pub struct PlaylistPatch {
     pub visibility: Option<PlaylistVisibility>,
 }
 
+/// Body of `POST /v1/playlists`.
+///
+/// Only `name` is required, and a body of `{"name": "…"}` behaves exactly as it did when that was
+/// the whole shape — the two additions are `#[serde(default)]` so an older client keeps working.
+///
+/// They exist because creation used to be a one-field prompt, which meant the two decisions that
+/// matter most about a playlist were made *after* it existed: a new playlist was public-by-default
+/// in effect, since nobody visits a settings dialog to lock down something they just made. Asking
+/// once, at the moment of naming, is both fewer steps and a safer default.
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export))]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+pub struct CreatePlaylistRequest {
+    pub name: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub description: Option<String>,
+    /// Omitted means [`PlaylistVisibility::Private`] — the same thing the column defaults to.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub visibility: Option<PlaylistVisibility>,
+}
+
 /// Body of `PUT /v1/playlists/{id}/tracks/order`: the complete track order, top to bottom.
 ///
 /// Ids absent from the playlist are ignored; playlist tracks absent from this list keep their

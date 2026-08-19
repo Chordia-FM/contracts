@@ -7,6 +7,10 @@
  */
 export type SuggestionFieldInput = { 
 /**
- * `image` | `banner` | `name` | `bio` | `genres`.
+ * What is being proposed, keyed by CONCEPT rather than by column so one review queue serves
+ * every entity kind: `name` is an artist's name and an album's or track's title, `image` is the
+ * primary artwork. Which keys are accepted depends on `MetadataSuggestionInput::entity_type` —
+ * artists take `image`/`banner`/`name`/`bio`/`genres`, albums take
+ * `image`/`name`/`genres`/`year`/`release_date`/`label`/`album_type`, tracks take `name`.
  */
 field: string, value_text?: string | null, value_image_hash?: string | null, };

@@ -7,6 +7,6 @@ import type { SuggestionFieldInput } from "./SuggestionFieldInput";
  */
 export type MetadataSuggestionInput = { 
 /**
- * Only `artist` is supported today.
+ * `artist` | `album` | `track`.
  */
 entity_type: string, entity_id: string, note?: string | null, items: Array<SuggestionFieldInput>, };

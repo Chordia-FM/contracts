@@ -250,6 +250,10 @@ pub struct UserSettings {
     /// track has no cover. Two to six CSS colours; ignored when `accent_mode` is `Static`.
     #[serde(default)]
     pub accent_palette: Vec<String>,
+    /// How fast the moving accent modes move. Ignored by [`AccentMode::Static`],
+    /// [`AccentMode::Gradient`] and [`AccentMode::Artwork`], none of which move on a timer.
+    #[serde(default)]
+    pub accent_speed: AccentSpeed,
     /// Paint this user's display name in their accent wherever it appears. Requires
     /// [`crate::billing::Feature::NameAccent`]; on by default so the perk is visible the moment it
     /// is bought rather than needing to be found.
@@ -324,6 +328,7 @@ impl Default for UserSettings {
             accent: default_accent(),
             accent_mode: AccentMode::default(),
             accent_palette: Vec::new(),
+            accent_speed: AccentSpeed::default(),
             name_accent: true,
             show_profile_accents: true,
             default_surface: default_surface(),
@@ -342,6 +347,22 @@ impl Default for UserSettings {
             open_to_follows: true,
         }
     }
+}
+
+/// How fast a moving accent moves.
+///
+/// A bounded set rather than a number, and the bound is the point: this drives a colour that changes
+/// under the whole interface, and an arbitrary "speed" field would let somebody configure a strobe.
+/// Even `Brisk` is slow enough that a full spectrum lap takes about a minute.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export))]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+pub enum AccentSpeed {
+    Relaxed,
+    #[default]
+    Steady,
+    Brisk,
 }
 
 /// How the accent colour behaves over time.

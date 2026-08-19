@@ -3,6 +3,7 @@
 // Generated bindings from the Rust crate (via ts-rs / typeshare):
 export * from "./bindings/AccentMode";
 export * from "./bindings/AccessClaims";
+export * from "./bindings/AccentSpeed";
 export * from "./bindings/AccountInfo";
 export * from "./bindings/AcquisitionGrab";
 export * from "./bindings/AcquisitionReport";

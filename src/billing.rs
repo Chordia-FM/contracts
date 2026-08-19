@@ -252,6 +252,13 @@ pub enum ProfileBadge {
         role: StaffRole,
     },
     /// Joined before this instance's early-bird cutoff.
+    /// Granted to someone who has translated Chordia. `languages` is free text an admin fills in,
+    /// because the honest answer is a list of locales and there is no enum that survives contact
+    /// with regional variants.
+    Translator {
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        languages: Option<String>,
+    },
     EarlyBird {
         joined_at: EpochMillis,
         /// Where this account falls in the instance's sign-up order, counting from 1.
@@ -297,6 +304,10 @@ pub struct AdminBadgeUpdate {
     /// `support` | `moderator` | `admin`, or `""` to remove the staff badge.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub staff_role: Option<String>,
+    /// The languages this person has translated, or `""` to remove the translator badge. Absent
+    /// leaves it alone, the same three-valued convention the fields above use.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub translator_languages: Option<String>,
 }
 
 /// One badge in the instance's badge directory: what it is, who has it, and whether it is still

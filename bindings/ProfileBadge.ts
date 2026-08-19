@@ -7,7 +7,7 @@ import type { StaffRole } from "./StaffRole";
  * Tagged by `kind` with the detail inline, rather than a flat struct of nullable fields: a badge's
  * detail is exactly what makes it that badge, and every renderer has to switch on the kind anyway.
  */
-export type ProfileBadge = { "kind": "developer", title: string, tagline?: string | null, } | { "kind": "staff", role: StaffRole, } | { "kind": "early_bird", joined_at: bigint, 
+export type ProfileBadge = { "kind": "developer", title: string, tagline?: string | null, } | { "kind": "staff", role: StaffRole, } | { "kind": "translator", languages?: string | null, } | { "kind": "early_bird", joined_at: bigint, 
 /**
  * Where this account falls in the instance's sign-up order, counting from 1.
  *

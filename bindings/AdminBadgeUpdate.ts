@@ -11,4 +11,9 @@ export type AdminBadgeUpdate = { developer_title?: string | null, developer_tagl
 /**
  * `support` | `moderator` | `admin`, or `""` to remove the staff badge.
  */
-staff_role?: string | null, };
+staff_role?: string | null, 
+/**
+ * The languages this person has translated, or `""` to remove the translator badge. Absent
+ * leaves it alone, the same three-valued convention the fields above use.
+ */
+translator_languages?: string | null, };

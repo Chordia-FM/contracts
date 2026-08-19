@@ -233,6 +233,70 @@ pub struct TopItem {
     pub image_url: Option<String>,
 }
 
+/// One month in the growth of the caller's liked songs.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export))]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+pub struct LikedPoint {
+    /// First day of the month, `YYYY-MM-DD`.
+    pub month: String,
+    /// Liked tracks held at the END of that month.
+    ///
+    /// Counted from the likes that are STILL IN PLACE, because an unlike leaves no record: the row
+    /// is deleted, so a song liked in March and unliked in April was never here as far as this can
+    /// tell. The line therefore reads "how your current collection accumulated", not "how many
+    /// songs you had liked at the time", and those are different questions with the same shape.
+    pub total: u32,
+}
+
+/// One artist's share of the caller's liked songs.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export))]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+pub struct LikedArtist {
+    pub id: Uuid,
+    pub name: String,
+    /// Liked tracks credited to this artist. Deliberately not a play count — this list answers
+    /// "whose songs did you keep", which is a different ranking from "whose songs did you play".
+    pub liked: u32,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub image_url: Option<String>,
+}
+
+/// The caller's liked songs in numbers, for the disclosure on the Liked Songs page.
+///
+/// Everything derived from listening honours the caller's retention floor, so the ratios below
+/// describe the window their insights already show rather than quietly reaching past it.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export))]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+pub struct LikedStats {
+    /// Liked tracks right now.
+    pub total: u32,
+    /// Their combined length. `0` when none of them resolve to a catalog track with a duration.
+    pub total_duration_ms: u64,
+    /// Oldest and newest like still in place.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub first_liked: Option<EpochMillis>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub last_liked: Option<EpochMillis>,
+    /// Cumulative growth, one point per month from the first like to now.
+    pub history: Vec<LikedPoint>,
+    /// Distinct tracks the caller has played inside the retention window.
+    pub played_tracks: u32,
+    /// How many of those they went on to like. With `played_tracks` at 0 the ratio is undefined,
+    /// which is why both numbers are sent rather than a percentage computed here.
+    pub played_liked: u32,
+    /// Liked tracks with no play on record in the window. "Saved for later" made countable.
+    pub never_played: u32,
+    /// The caller's plays across their liked tracks.
+    pub liked_plays: u64,
+    /// The caller's most-played tracks that they have NOT liked — the songs the heart missed.
+    pub unliked_favourites: Vec<TopItem>,
+    /// Artists best represented in the liked list.
+    pub top_artists: Vec<LikedArtist>,
+}
+
 /// One consecutive run of active listening days.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export))]

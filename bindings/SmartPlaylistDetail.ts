@@ -15,6 +15,10 @@ cover_url?: string | null,
  */
 auto_cover_urls: Array<string>, 
 /**
+ * See [`SmartPlaylist::refresh_on_complete`].
+ */
+refresh_on_complete: boolean, 
+/**
  * Minutes between automatic refreshes; [`SMART_REFRESH_NEVER`] (`0`) = manual only.
  */
 refresh_interval_minutes: number, 

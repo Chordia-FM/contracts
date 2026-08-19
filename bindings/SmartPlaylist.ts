@@ -19,6 +19,16 @@ cover_url?: string | null,
  */
 auto_cover_urls: Array<string>, 
 /**
+ * Re-resolve the rules once the playlist has been played to the end, on top of any timed
+ * schedule.
+ *
+ * The point is a list that renews itself as you finish it rather than on a clock you have to
+ * guess at: "on repeat this month" is most useful the moment you have heard all of it. It is
+ * the CLIENT that reports this, because only the client knows a queue ran out, and only the
+ * queue knows which playlist it came from.
+ */
+refresh_on_complete: boolean, 
+/**
  * Minutes between automatic refreshes; [`SMART_REFRESH_NEVER`] (`0`) = manual only.
  */
 refresh_interval_minutes: number, 

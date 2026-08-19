@@ -254,6 +254,14 @@ pub enum ProfileBadge {
     /// Joined before this instance's early-bird cutoff.
     EarlyBird {
         joined_at: EpochMillis,
+        /// Where this account falls in the instance's sign-up order, counting from 1.
+        ///
+        /// The join DATE alone answers "how long have you been here", which is the smaller half of
+        /// what an early badge is about — being early is a comparison, and without the position
+        /// there is nothing to compare against. Unlike an early-supporter rank this is derived, not
+        /// allocated: it is recomputed per read, so a deleted account ahead of you moves you up.
+        #[serde(default)]
+        position: u32,
     },
     /// One of the first hundred accounts to ever start a paid subscription. Never revoked, and the
     /// rank is never reissued — including after the holder deletes their account.

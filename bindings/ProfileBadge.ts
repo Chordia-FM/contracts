@@ -7,7 +7,16 @@ import type { StaffRole } from "./StaffRole";
  * Tagged by `kind` with the detail inline, rather than a flat struct of nullable fields: a badge's
  * detail is exactly what makes it that badge, and every renderer has to switch on the kind anyway.
  */
-export type ProfileBadge = { "kind": "developer", title: string, tagline?: string | null, } | { "kind": "staff", role: StaffRole, } | { "kind": "early_bird", joined_at: bigint, } | { "kind": "early_supporter", rank: number, since: bigint, } | { "kind": "sonic", since: bigint, 
+export type ProfileBadge = { "kind": "developer", title: string, tagline?: string | null, } | { "kind": "staff", role: StaffRole, } | { "kind": "early_bird", joined_at: bigint, 
+/**
+ * Where this account falls in the instance's sign-up order, counting from 1.
+ *
+ * The join DATE alone answers "how long have you been here", which is the smaller half of
+ * what an early badge is about — being early is a comparison, and without the position
+ * there is nothing to compare against. Unlike an early-supporter rank this is derived, not
+ * allocated: it is recomputed per read, so a deleted account ahead of you moves you up.
+ */
+position: number, } | { "kind": "early_supporter", rank: number, since: bigint, } | { "kind": "sonic", since: bigint, 
 /**
  * Whole months of the current unbroken streak. The client derives any visual stage from
  * this, so changing the stage thresholds needs no server deploy.

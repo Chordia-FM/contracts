@@ -104,6 +104,14 @@ pub struct SmartCondition {
     pub field: SmartField,
     pub op: SmartOp,
     pub value: String,
+    /// Every value this rule accepts, matched as OR: `artist is A, B, C`. Empty means the rule is
+    /// the single `value` above, which is how every rule written before this field existed reads.
+    ///
+    /// `value` is kept in sync with the first entry rather than being emptied, so a reader that
+    /// predates this field still resolves the rule to something sensible instead of to nothing.
+    /// Only the text fields use it; a numeric or date rule ignores it.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub values: Vec<String>,
     /// Upper bound for [`SmartOp::Between`]; ignored by every other operator.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub value2: Option<String>,
@@ -216,10 +224,17 @@ pub struct SmartPlaylist {
     pub name: String,
     pub created_at: EpochMillis,
     pub rules: SmartRules,
-    /// A Phosphor icon slug, or `emoji:` + a literal emoji — the same encoding libraries use. `None`
-    /// keeps the funnel that every smart playlist used to be stuck with.
+    /// User-set cover, if any. Takes precedence over `auto_cover_urls`.
+    ///
+    /// Deliberately the same pair of fields a regular [`crate::catalog::Playlist`] carries, rather
+    /// than the icon slug this used to be: a smart playlist is a playlist, and having one kind wear
+    /// a picture and the other a glyph made them read as different species in the same sidebar.
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub icon: Option<String>,
+    pub cover_url: Option<String>,
+    /// Up to 4 distinct album covers from the current snapshot, for an auto mosaic when no
+    /// `cover_url` is set. Follows the rules, so it re-shuffles as the playlist does.
+    #[serde(default)]
+    pub auto_cover_urls: Vec<String>,
     /// Minutes between automatic refreshes; [`SMART_REFRESH_NEVER`] (`0`) = manual only.
     #[serde(default)]
     pub refresh_interval_minutes: u32,
@@ -241,9 +256,12 @@ pub struct SmartPlaylistDetail {
     pub name: String,
     pub rules: SmartRules,
     pub tracks: Vec<BrowseTrack>,
-    /// See [`SmartPlaylist::icon`].
+    /// See [`SmartPlaylist::cover_url`].
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub icon: Option<String>,
+    pub cover_url: Option<String>,
+    /// See [`SmartPlaylist::auto_cover_urls`].
+    #[serde(default)]
+    pub auto_cover_urls: Vec<String>,
     /// Minutes between automatic refreshes; [`SMART_REFRESH_NEVER`] (`0`) = manual only.
     #[serde(default)]
     pub refresh_interval_minutes: u32,

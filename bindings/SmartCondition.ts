@@ -8,6 +8,15 @@ import type { SmartPeriod } from "./SmartPeriod";
  */
 export type SmartCondition = { field: SmartField, op: SmartOp, value: string, 
 /**
+ * Every value this rule accepts, matched as OR: `artist is A, B, C`. Empty means the rule is
+ * the single `value` above, which is how every rule written before this field existed reads.
+ *
+ * `value` is kept in sync with the first entry rather than being emptied, so a reader that
+ * predates this field still resolves the rule to something sensible instead of to nothing.
+ * Only the text fields use it; a numeric or date rule ignores it.
+ */
+values?: Array<string>, 
+/**
  * Upper bound for [`SmartOp::Between`]; ignored by every other operator.
  */
 value2?: string | null, 

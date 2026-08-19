@@ -7,9 +7,13 @@ import type { SmartRules } from "./SmartRules";
  */
 export type SmartPlaylistDetail = { id: string, name: string, rules: SmartRules, tracks: Array<BrowseTrack>, 
 /**
- * See [`SmartPlaylist::icon`].
+ * See [`SmartPlaylist::cover_url`].
  */
-icon?: string | null, 
+cover_url?: string | null, 
+/**
+ * See [`SmartPlaylist::auto_cover_urls`].
+ */
+auto_cover_urls: Array<string>, 
 /**
  * Minutes between automatic refreshes; [`SMART_REFRESH_NEVER`] (`0`) = manual only.
  */

@@ -6,10 +6,18 @@ import type { SmartRules } from "./SmartRules";
  */
 export type SmartPlaylist = { id: string, name: string, created_at: bigint, rules: SmartRules, 
 /**
- * A Phosphor icon slug, or `emoji:` + a literal emoji — the same encoding libraries use. `None`
- * keeps the funnel that every smart playlist used to be stuck with.
+ * User-set cover, if any. Takes precedence over `auto_cover_urls`.
+ *
+ * Deliberately the same pair of fields a regular [`crate::catalog::Playlist`] carries, rather
+ * than the icon slug this used to be: a smart playlist is a playlist, and having one kind wear
+ * a picture and the other a glyph made them read as different species in the same sidebar.
  */
-icon?: string | null, 
+cover_url?: string | null, 
+/**
+ * Up to 4 distinct album covers from the current snapshot, for an auto mosaic when no
+ * `cover_url` is set. Follows the rules, so it re-shuffles as the playlist does.
+ */
+auto_cover_urls: Array<string>, 
 /**
  * Minutes between automatic refreshes; [`SMART_REFRESH_NEVER`] (`0`) = manual only.
  */

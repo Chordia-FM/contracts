@@ -14,6 +14,8 @@ export * from "./bindings/AdminCatalog";
 export * from "./bindings/AdminDayPoint";
 export * from "./bindings/AdminEnrichmentBacklog";
 export * from "./bindings/AdminOverview";
+export * from "./bindings/AdminPlanGrant";
+export * from "./bindings/AdminPlanGrantView";
 export * from "./bindings/AdminPeople";
 export * from "./bindings/AdminQueueStat";
 export * from "./bindings/AdminRollupStat";

@@ -420,6 +420,10 @@ pub struct AdminUserProfile {
     /// the rest as read-only.
     #[serde(default)]
     pub badges: Vec<crate::billing::ProfileBadge>,
+    /// The live admin comp, if this account has one. Shown so an admin can see what is already
+    /// granted before granting again, and so revoking has something to revoke.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub plan_grant: Option<crate::billing::AdminPlanGrantView>,
 }
 
 /// What an admin is changing about the deployment itself. Omitted fields are left alone.

@@ -356,3 +356,36 @@ pub struct BadgeCountPoint {
     /// Total holders as of the end of that day.
     pub holders: u32,
 }
+
+/// `PUT /v1/admin/users/{id}/plan`: comp somebody a plan.
+///
+/// Distinct from the staff and admin comps, which grant capability without a badge so a staff
+/// member can still buy the badge they administer. This one reads as a real plan and earns the tier
+/// badge, because giving somebody premium and withholding the thing that shows it is a half-gift.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export))]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+pub struct AdminPlanGrant {
+    /// `sonic` or `super_sonic`. A grant may only ever RAISE what an account has; it never lowers a
+    /// tier somebody is paying for, and Free is expressed by revoking rather than by granting it.
+    pub tier: PlanTier,
+    /// When it runs out. Absent means forever.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub expires_at: Option<EpochMillis>,
+    /// Why, for whoever reads this in a year.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub note: Option<String>,
+}
+
+/// A live comp, as the admin user page shows it.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export))]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+pub struct AdminPlanGrantView {
+    pub tier: PlanTier,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub expires_at: Option<EpochMillis>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub note: Option<String>,
+    pub granted_at: EpochMillis,
+}

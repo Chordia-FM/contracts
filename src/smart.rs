@@ -76,6 +76,12 @@ pub enum SmartOp {
     NotInLast,
     /// Inclusive range from `value` to `value2`. Both bounds are required.
     Between,
+    /// The negation of [`SmartOp::Contains`], and NULL-safe: a track with no album still "does not
+    /// contain" a string. Without that, "title does not contain (Live)" would silently drop every
+    /// track whose field is empty, which is the opposite of what it says.
+    NotContains,
+    /// The negation of [`SmartOp::Equals`], NULL-safe for the same reason.
+    NotEquals,
 }
 
 /// A window of listening history, for [`SmartField::MyPlays`] and period-scoped sorting.

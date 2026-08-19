@@ -298,3 +298,50 @@ pub struct AdminBadgeUpdate {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub staff_role: Option<String>,
 }
+
+/// One badge in the instance's badge directory: what it is, who has it, and whether it is still
+/// possible to get.
+///
+/// Deliberately keyed by the same `kind` strings [`ProfileBadge`] tags itself with, so the directory
+/// and a badge on a profile are provably the same set — a badge that exists but is missing from the
+/// directory would be the failure nobody notices.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export))]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+pub struct BadgeCatalogEntry {
+    /// `developer` | `staff` | `early_bird` | `early_supporter` | `sonic` | `super_sonic`.
+    pub kind: String,
+    /// How many accounts currently carry it.
+    pub holders: u32,
+    /// Whether a new account could still earn it today.
+    ///
+    /// False for the early-bird badge once its cutoff has passed, and for the early-supporter badge
+    /// once all hundred ranks are taken. The tier badges are always obtainable; the granted ones
+    /// (developer, staff) are obtainable only in the sense that an admin may grant them, which is
+    /// reported as false because it is not something a reader can go and do.
+    pub obtainable: bool,
+    /// When the badge stops being obtainable, if that is a date. Only the early-bird badge has one.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub available_until: Option<EpochMillis>,
+    /// How many of a capped badge remain. Only the early-supporter badge is capped.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub remaining: Option<u32>,
+    /// Cumulative holders over time, oldest first — one point per day on which the count changed.
+    ///
+    /// Empty where the history is not recorded rather than estimated. A tier badge only knows when
+    /// its holder's CURRENT streak began, so a subscriber count for last March cannot be recovered
+    /// and is not invented; the client says so instead of drawing a line.
+    #[serde(default)]
+    pub history: Vec<BadgeCountPoint>,
+}
+
+/// One point on a badge's holders-over-time line.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export))]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+pub struct BadgeCountPoint {
+    /// `YYYY-MM-DD`, in UTC.
+    pub day: String,
+    /// Total holders as of the end of that day.
+    pub holders: u32,
+}

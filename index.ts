@@ -56,6 +56,8 @@ export * from "./bindings/AuthResponse";
 export * from "./bindings/BackupFile";
 export * from "./bindings/BackupIndex";
 export * from "./bindings/BackupVerdict";
+export * from "./bindings/BadgeCatalogEntry";
+export * from "./bindings/BadgeCountPoint";
 export * from "./bindings/BillingInterval";
 export * from "./bindings/BillingMe";
 export * from "./bindings/BillingStatus";

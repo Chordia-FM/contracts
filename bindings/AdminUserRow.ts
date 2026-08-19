@@ -3,4 +3,9 @@
 /**
  * One account in the admin roster.
  */
-export type AdminUserRow = { id: string, handle: string, email: string, display_name: string, created_at_ms: bigint, suspended: boolean, suspended_reason?: string | null, };
+export type AdminUserRow = { id: string, handle: string, 
+/**
+ * Absent for an account that has never had one — a Discord sign-in that did not share an
+ * address creates exactly that, and `users.email` is nullable to match.
+ */
+email?: string | null, display_name: string, created_at_ms: bigint, suspended: boolean, suspended_reason?: string | null, };

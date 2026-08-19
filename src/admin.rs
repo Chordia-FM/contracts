@@ -32,7 +32,10 @@ pub type AuditDiff = BTreeMap<String, Option<String>>;
 pub struct AdminUserRow {
     pub id: Uuid,
     pub handle: String,
-    pub email: String,
+    /// Absent for an account that has never had one — a Discord sign-in that did not share an
+    /// address creates exactly that, and `users.email` is nullable to match.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub email: Option<String>,
     pub display_name: String,
     pub created_at_ms: EpochMillis,
     pub suspended: bool,
@@ -326,7 +329,9 @@ pub struct AdminSystemHealth {
 pub struct AdminUserDetail {
     pub id: Uuid,
     pub handle: String,
-    pub email: String,
+    /// See [`AdminUserRow::email`].
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub email: Option<String>,
     pub display_name: String,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub avatar_url: Option<String>,

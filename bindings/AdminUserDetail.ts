@@ -7,7 +7,11 @@
  * suspend/delete flows round-trip, and widening it would make every one of those carry seven
  * columns they do not use.
  */
-export type AdminUserDetail = { id: string, handle: string, email: string, display_name: string, avatar_url?: string | null, created_at_ms: bigint, suspended: boolean, suspended_reason?: string | null, email_verified: boolean, totp_enabled: boolean, is_admin: boolean, libraries: bigint, plays: bigint, 
+export type AdminUserDetail = { id: string, handle: string, 
+/**
+ * See [`AdminUserRow::email`].
+ */
+email?: string | null, display_name: string, avatar_url?: string | null, created_at_ms: bigint, suspended: boolean, suspended_reason?: string | null, email_verified: boolean, totp_enabled: boolean, is_admin: boolean, libraries: bigint, plays: bigint, 
 /**
  * Last time any of this account's sessions was used. Absent for an account that has never
  * signed in since sessions were tracked.

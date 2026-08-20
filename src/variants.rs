@@ -59,9 +59,14 @@ impl TrackVariant {
         }
     }
 
-    /// Parse a wire spelling back. Used by the smart-playlist resolver, which stores a rule's value
-    /// as text.
-    pub fn from_str(s: &str) -> Option<Self> {
+    /// Parse a wire spelling back. Used by the smart-playlist resolver, which stores a rule's
+    /// value as text, and by the row mapper, which reads a `text[]` column.
+    ///
+    /// Named `from_wire` rather than `from_str`: the latter shadows `std::str::FromStr::from_str`,
+    /// which clippy rejects because a reader cannot tell which one a call resolves to. Implementing
+    /// the trait proper would buy `"live".parse()` and an error type nobody here wants — every
+    /// caller treats an unknown spelling as "no marker", not as a failure.
+    pub fn from_wire(s: &str) -> Option<Self> {
         Some(match s {
             "live" => Self::Live,
             "acoustic" => Self::Acoustic,

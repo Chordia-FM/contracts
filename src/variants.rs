@@ -103,16 +103,17 @@ impl TrackVariant {
 }
 
 /// What one parenthetical turned out to be.
-#[derive(Clone, Copy)]
-enum Parsed {
-    /// A marker worth keeping as a badge.
-    Variant(TrackVariant),
-    /// Recognised, but says nothing a reader wants: `(Album Version)`.
-    Noise,
+#[derive(Default)]
+struct Parsed {
+    /// EVERY marker the segment carries. `(Live Acoustic)` is both, and a track that is only
+    /// tagged as one of them is missing from a filter for the other.
+    variants: Vec<TrackVariant>,
     /// A content rating that belongs in `advisory`, not in the name.
-    Advisory(&'static str),
-    /// Not recognised. Stays in the title.
-    Keep,
+    advisory: Option<&'static str>,
+    /// Recognised at all. `false` means the segment is part of the song's name and stays put —
+    /// which is different from a segment that IS recognised and contributes no badge, like
+    /// `(Album Version)`.
+    known: bool,
 }
 
 /// What a title looked like once its markers were taken out.
@@ -130,6 +131,18 @@ pub struct StrippedTitle {
     /// carries them. The caller credits this name so the DJ is findable, instead of leaving them as
     /// text inside one row's title.
     pub remixer: Option<String>,
+    /// Where the title says it was recorded: `(Live at Wembley Arena)` → `Wembley Arena`.
+    ///
+    /// A hint and named as one. The preposition is what makes it a guess worth making — "Live at X"
+    /// is a place, "Live Session" is not — but the parser cannot tell a venue from a city from a
+    /// radio studio, and MusicBrainz is the one that can, with coordinates. This is what the catalog
+    /// has when MusicBrainz has nothing, which for live bootlegs is most of the time.
+    pub venue: Option<String>,
+    /// The year a live segment carries: `(Live at Wembley Arena, 1985)` → `1985`.
+    ///
+    /// Read even when the segment is stripped, because `(Live 1978)` subtracts to nothing and would
+    /// otherwise take the only date with it.
+    pub recorded_year: Option<u16>,
 }
 
 /// Every word a badge already expresses, plus the connective tissue around it.
@@ -273,121 +286,188 @@ fn residue(segment: &str) -> &str {
     &segment[words[lo].0..words[hi - 1].1]
 }
 
-/// The remixer a residue names, if it names one at all.
-fn remixer_from(left: &str) -> Option<String> {
-    // `Remix by Gianni Marino` leaves the preposition at the front of the residue; the name is what
-    // follows it.
-    let lower = left.to_ascii_lowercase();
-    let name = match lower.strip_prefix("by ") {
-        Some(_) => &left[3..],
-        None => left,
+/// The remixer a segment names, if it names one at all.
+///
+/// Trimmed from the END only, unlike [`residue`]. A name can BEGIN with a word this file also
+/// treats as vocabulary — Clean Bandit, The Killers, Cover Drive, Single Mothers — and trimming
+/// both ends credits "Bandit" and "Killers". Nothing is called "X Remix" unless that last word is
+/// the marker, so the trailing end is safe to eat and the leading end is not.
+fn remixer_from(segment: &str) -> Option<String> {
+    let mut words: Vec<&str> = segment.split_whitespace().collect();
+    while words.last().is_some_and(|w| is_vocab(w)) {
+        words.pop();
     }
-    .trim()
-    .trim_matches(|c: char| c == ',' || c == '-' || c == '+' || c == '&')
-    .trim();
+    // `Remix by Skrillex` and `Remix - Skrillex` put the marker first instead, which is the one
+    // shape where a leading word has to go. Only these, and only from the front.
+    while words
+        .first()
+        .is_some_and(|w| matches!(norm(w).as_str(), "remix" | "mix" | "by" | ""))
+    {
+        words.remove(0);
+    }
+    let name = words
+        .join(" ")
+        .trim_matches(|c: char| c == ',' || c == '-' || c == '+' || c == '&' || c.is_whitespace())
+        .to_string();
     if name.is_empty() {
         return None;
     }
-    let words: Vec<&str> = name.split_whitespace().collect();
-    // A long residue is a sentence, a second title, or a tracklist glued on by a careless rip. It
-    // is not somebody's name, and the cost of being wrong here is a permanent junk artist.
-    if words.len() > 5 || name.chars().count() > 60 {
+    // Longer than this is a sentence, a second title, or a tracklist glued on by a careless rip.
+    // It is not somebody's name, and the cost of being wrong is a permanent junk artist.
+    if name.split_whitespace().count() > 5 || name.chars().count() > 60 {
         return None;
     }
-    if words
-        .iter()
+    if name
+        .split_whitespace()
         .all(|w| STYLE_QUALIFIERS.contains(&norm(w).as_str()))
     {
+        return None;
+    }
+    Some(name)
+}
+
+/// The place a live segment names, if it names one at all.
+///
+/// A preposition is required, and it is the whole guard: "Live at Wembley Arena" is somewhere,
+/// "Live Session" and "Live Acoustic" are not. Without it the residue of any live segment would be
+/// read as a location, and the map this feeds would fill up with places called "Session".
+fn venue_from(left: &str) -> Option<String> {
+    let lower = left.to_ascii_lowercase();
+    let rest = ["at ", "in ", "from ", "@ "]
+        .iter()
+        .find_map(|p| lower.starts_with(p).then(|| &left[p.len()..]))?;
+
+    // A trailing year belongs to `recorded_year`, which reads it off the whole segment; leaving it
+    // on the venue would make "Wembley Arena 1985" and "Wembley Arena 1986" two different places.
+    let mut end = rest.len();
+    loop {
+        let head =
+            rest[..end].trim_end_matches(|c: char| c == ',' || c == '-' || c.is_whitespace());
+        let last = head.split_whitespace().next_back()?;
+        if last.chars().all(|c| c.is_ascii_digit()) {
+            end = head.len() - last.len();
+        } else {
+            end = head.len();
+            break;
+        }
+    }
+    let name = rest[..end].trim();
+    if name.is_empty() {
+        return None;
+    }
+    // Beyond this it is a sentence or a tracklist, not a place.
+    if name.split_whitespace().count() > 8 || name.chars().count() > 80 {
         return None;
     }
     Some(name.to_string())
 }
 
+/// A four-digit year standing alone anywhere in a segment.
+fn year_in(segment: &str) -> Option<u16> {
+    segment
+        .split(|c: char| !c.is_ascii_digit())
+        .filter(|w| w.len() == 4)
+        .find_map(|w| w.parse::<u16>().ok())
+        .filter(|y| (1900..=2099).contains(y))
+}
+
 /// Classify the inside of one parenthetical (or one trailing dash segment).
+///
+/// Every marker that applies, not the first one found. A segment saying "Live Acoustic" describes a
+/// recording that is both, and reporting only one of them hides the track from a filter for the
+/// other — which is the same information loss as deleting the words would be.
+///
+/// The exception is the family answering "which edit is this": radio edit, single version, remix,
+/// extended. Those are alternatives and they overlap on the same words — "Radio Mix" is a radio
+/// edit and NOT also a remix, "Extended Mix" is one badge rather than two. At most one is taken,
+/// most specific first. Everything else is asked independently.
 ///
 /// Matching is on normalised words, so `Remastered 2011`, `2011 Remaster` and `Digital Remaster`
 /// all land on the same marker without needing an entry each. Deliberately substring-based on a
 /// small vocabulary rather than a general parser: the input is human-typed tag text with no grammar
 /// to rely on, and the cost of a wrong guess is a mangled song title.
 fn classify(segment: &str) -> Parsed {
+    let mut out = Parsed::default();
     let s = segment.trim().to_ascii_lowercase();
     if s.is_empty() {
-        return Parsed::Keep;
+        return out;
     }
 
     // A featured-artist credit is NEVER touched. The credited-artist line is rebuilt from
     // `track_artists`, and a guest who is only named in the title would vanish entirely.
     if s.starts_with("feat") || s.starts_with("ft.") || s.starts_with("with ") {
-        return Parsed::Keep;
+        return out;
     }
 
-    // Ratings first: `(Album Version (Explicit))` arrives here as `album version (explicit)` after
-    // the outer bracket is peeled, so the rating has to be found before the noise check consumes it.
-    if s.contains("explicit") {
-        return Parsed::Advisory("explicit");
-    }
-    if s.contains("clean") {
-        return Parsed::Advisory("clean");
+    // A rating, but only when the segment says nothing else. `explicit` and `clean` are words that
+    // turn up inside names — "Clean Bandit Remix" is a remix by a band, not a clean edit — and an
+    // empty residue is exactly the test for "this segment is the marker and no more".
+    if residue(segment).is_empty() {
+        if s.contains("explicit") {
+            out.advisory = Some("explicit");
+            out.known = true;
+        } else if s.contains("clean") {
+            out.advisory = Some("clean");
+            out.known = true;
+        }
     }
 
-    // Noise: true of almost every track on almost every album, and therefore information-free.
+    // Which edit is this: at most one, most specific first.
     //
-    // `Original Mix` belongs here and NOT with the remixes it superficially resembles. In dance
-    // music it is what a track is called when it has NOT been remixed — the thing every remix is a
-    // remix of — so reading it as a remix inverts its meaning, and a "no remixes" rule would throw
-    // away precisely the originals.
+    // `Original Mix` leads the list and contributes nothing, because in dance music it is what a
+    // track is called when it has NOT been remixed — the thing every remix is a remix of. Reading
+    // it as a remix inverts the meaning and makes "no remixes" throw away precisely the originals.
+    // `Album Version` is the same shape: true of nearly every track on nearly every album, and so
+    // information-free.
     if s.contains("album version")
         || s.contains("album edit")
         || s.contains("original mix")
         || s.contains("original version")
         || s == "original"
     {
-        return Parsed::Noise;
+        out.known = true;
+    } else if s.contains("radio edit") || s.contains("radio version") || s.contains("radio mix") {
+        out.variants.push(TrackVariant::RadioEdit);
+    } else if s.contains("single version") || s.contains("single edit") {
+        out.variants.push(TrackVariant::SingleVersion);
+    } else if s.contains("remix") || s.contains(" mix") || s.ends_with("mix") {
+        out.variants.push(TrackVariant::Remix);
+    } else if s.contains("extended") {
+        out.variants.push(TrackVariant::Extended);
     }
 
-    // Order matters where words overlap. `live` is checked as a whole word because "olive" and
-    // "delivery" are real title words; the rest are distinctive enough to match anywhere.
+    // And every marker that stands on its own. `live` is checked as a whole word because "olive"
+    // and "delivery" are real title words; the rest are distinctive enough to match anywhere.
     if s.contains("remaster") {
-        return Parsed::Variant(TrackVariant::Remaster);
-    }
-    if s.contains("radio edit") || s.contains("radio version") || s.contains("radio mix") {
-        return Parsed::Variant(TrackVariant::RadioEdit);
-    }
-    if s.contains("single version") || s.contains("single edit") {
-        return Parsed::Variant(TrackVariant::SingleVersion);
+        out.variants.push(TrackVariant::Remaster);
     }
     if s.contains("instrumental") {
-        return Parsed::Variant(TrackVariant::Instrumental);
+        out.variants.push(TrackVariant::Instrumental);
     }
     if s.contains("acoustic") || s.contains("unplugged") {
-        return Parsed::Variant(TrackVariant::Acoustic);
+        out.variants.push(TrackVariant::Acoustic);
     }
     if s.contains("karaoke") {
-        return Parsed::Variant(TrackVariant::Karaoke);
-    }
-    if s.contains("remix") || s.contains(" mix") || s.ends_with("mix") {
-        return Parsed::Variant(TrackVariant::Remix);
+        out.variants.push(TrackVariant::Karaoke);
     }
     if s.contains("demo") {
-        return Parsed::Variant(TrackVariant::Demo);
-    }
-    if s.contains("extended") {
-        return Parsed::Variant(TrackVariant::Extended);
+        out.variants.push(TrackVariant::Demo);
     }
     if s.contains("bonus") {
-        return Parsed::Variant(TrackVariant::Bonus);
+        out.variants.push(TrackVariant::Bonus);
     }
     if s.contains("deluxe") {
-        return Parsed::Variant(TrackVariant::Deluxe);
+        out.variants.push(TrackVariant::Deluxe);
     }
     if s.contains("cover version") || s.starts_with("cover") {
-        return Parsed::Variant(TrackVariant::Cover);
+        out.variants.push(TrackVariant::Cover);
     }
     if s.split(|c: char| !c.is_alphanumeric()).any(|w| w == "live") {
-        return Parsed::Variant(TrackVariant::Live);
+        out.variants.push(TrackVariant::Live);
     }
 
-    Parsed::Keep
+    out.known |= !out.variants.is_empty();
+    out
 }
 
 /// Take the markers out of a title.
@@ -400,6 +480,8 @@ pub fn strip_title(raw: &str) -> StrippedTitle {
     let mut variants: Vec<TrackVariant> = Vec::new();
     let mut advisory: Option<&'static str> = None;
     let mut remixer: Option<String> = None;
+    let mut venue: Option<String> = None;
+    let mut recorded_year: Option<u16> = None;
 
     loop {
         let trimmed = title.trim_end();
@@ -440,26 +522,19 @@ pub fn strip_title(raw: &str) -> StrippedTitle {
         };
 
         let parsed = classify(&segment);
-        if matches!(parsed, Parsed::Keep) {
+        if !parsed.known {
             break;
         }
-        if let Parsed::Variant(v) = parsed {
-            if !variants.contains(&v) {
-                variants.push(v);
+        for v in &parsed.variants {
+            if !variants.contains(v) {
+                variants.push(*v);
             }
         }
-        if let Parsed::Advisory(a) = parsed {
-            advisory = advisory.or(Some(a));
-        }
-        // `(Album Version (Explicit))` classifies as Advisory on the inner word; the outer
-        // `album version` is noise either way, so both are consumed together and nothing is lost.
-        if advisory.is_none() {
-            let low = segment.to_ascii_lowercase();
-            if low.contains("explicit") {
-                advisory = Some("explicit");
-            } else if low.contains("clean") {
-                advisory = Some("clean");
-            }
+        advisory = advisory.or(parsed.advisory);
+        // Read whether or not the segment survives: `(Live 1978)` subtracts to nothing and would
+        // take the only date on the recording with it.
+        if parsed.variants.contains(&TrackVariant::Live) && recorded_year.is_none() {
+            recorded_year = year_in(&segment);
         }
 
         // The marker is recorded either way; whether the SEGMENT goes depends on whether the badge
@@ -468,8 +543,12 @@ pub fn strip_title(raw: &str) -> StrippedTitle {
         // sits behind text that is staying.
         let left = residue(&segment);
         if !left.is_empty() {
-            if matches!(parsed, Parsed::Variant(TrackVariant::Remix)) && remixer.is_none() {
-                remixer = remixer_from(left);
+            // Both, because one segment can carry both: "(Live at Wembley, Kaskade Remix)".
+            if parsed.variants.contains(&TrackVariant::Remix) && remixer.is_none() {
+                remixer = remixer_from(&segment);
+            }
+            if parsed.variants.contains(&TrackVariant::Live) && venue.is_none() {
+                venue = venue_from(left);
             }
             break;
         }
@@ -488,6 +567,8 @@ pub fn strip_title(raw: &str) -> StrippedTitle {
             variants: Vec::new(),
             advisory: None,
             remixer: None,
+            venue: None,
+            recorded_year: None,
         };
     }
 
@@ -497,6 +578,8 @@ pub fn strip_title(raw: &str) -> StrippedTitle {
         variants,
         advisory,
         remixer,
+        venue,
+        recorded_year,
     }
 }
 
@@ -785,6 +868,138 @@ mod tests {
             s("Song - Live at Budokan"),
             ("Song - Live at Budokan".into(), vec!["live"], None)
         );
+    }
+
+    #[test]
+    fn a_live_recording_reports_where_and_when() {
+        // The point of reading these out rather than leaving them in the title: a venue with
+        // coordinates can be counted, grouped and put on a map, and a substring of a title cannot.
+        let r = strip_title("Song (Live at Wembley Arena)");
+        assert_eq!(r.venue.as_deref(), Some("Wembley Arena"));
+        assert_eq!(r.recorded_year, None);
+
+        let r = strip_title("Song - Live at Budokan, 1978");
+        assert_eq!(r.venue.as_deref(), Some("Budokan"));
+        assert_eq!(r.recorded_year, Some(1978));
+
+        // The year is part of the marker for stripping purposes, so this segment subtracts to
+        // nothing and goes — the date has to be read before that happens or it leaves with it.
+        let r = strip_title("Song (Live 1978)");
+        assert_eq!(r.title, "Song");
+        assert_eq!(r.recorded_year, Some(1978));
+        assert_eq!(r.venue, None);
+
+        for (raw, want) in [
+            ("Song (Live in Paris)", "Paris"),
+            ("Song (Live from Abbey Road)", "Abbey Road"),
+            (
+                "Song (Live at the O2 Arena, London 2019)",
+                "the O2 Arena, London",
+            ),
+        ] {
+            assert_eq!(strip_title(raw).venue.as_deref(), Some(want), "{raw}");
+        }
+    }
+
+    #[test]
+    fn a_live_segment_without_a_preposition_names_no_place() {
+        // The guard, and the only thing standing between this and a map covered in venues called
+        // "Session". A residue is not a location just because the recording was live.
+        for raw in [
+            "Song (Live Session)",
+            "Song (Live Rehearsal)",
+            "Song (Live Bootleg)",
+        ] {
+            assert_eq!(strip_title(raw).venue, None, "{raw}");
+            // Still a live recording, and still kept in the title, which is what the residue rule
+            // is for — this test is about the venue, not about refusing to parse anything.
+            assert_eq!(strip_title(raw).variants, vec![TrackVariant::Live], "{raw}");
+            assert_eq!(strip_title(raw).title, raw, "{raw}");
+        }
+    }
+
+    #[test]
+    fn a_segment_that_says_two_things_gets_two_badges() {
+        // A recording can be more than one thing at once, and reporting only the first match hides
+        // the track from a filter for everything else it is. "Live Acoustic" is the case that
+        // prompted this: it used to come back acoustic, so a live-recordings list simply did not
+        // contain it.
+        for (raw, want) in [
+            (
+                "Song (Live Acoustic)",
+                vec![TrackVariant::Live, TrackVariant::Acoustic],
+            ),
+            (
+                "Song (Acoustic Demo)",
+                vec![TrackVariant::Acoustic, TrackVariant::Demo],
+            ),
+            (
+                "Song (Live Remastered)",
+                vec![TrackVariant::Live, TrackVariant::Remaster],
+            ),
+            (
+                "Song (Live Instrumental)",
+                vec![TrackVariant::Live, TrackVariant::Instrumental],
+            ),
+        ] {
+            let r = strip_title(raw);
+            // Ordered by how much the marker changes the recording, not by tag order.
+            assert_eq!(r.variants, want, "{raw}");
+            // Both words are vocabulary, so the segment still subtracts to nothing and goes.
+            assert_eq!(r.title, "Song", "{raw}");
+        }
+    }
+
+    #[test]
+    fn only_one_marker_answers_which_edit_this_is() {
+        // The other half of the rule. Radio edit, single version, remix and extended are
+        // alternatives, and they overlap on the same words — a "Radio Mix" is a radio edit, and
+        // calling it a remix as well would be two badges saying one thing, one of them wrong.
+        for (raw, want) in [
+            ("Song (Radio Mix)", TrackVariant::RadioEdit),
+            ("Song (Radio Edit)", TrackVariant::RadioEdit),
+            ("Song (Single Version)", TrackVariant::SingleVersion),
+            ("Song (Extended Mix)", TrackVariant::Remix),
+            ("Song (Extended Version)", TrackVariant::Extended),
+        ] {
+            assert_eq!(strip_title(raw).variants, vec![want], "{raw}");
+        }
+        // But an independent marker still rides along with whichever one won.
+        assert_eq!(
+            strip_title("Song (Live Radio Edit)").variants,
+            vec![TrackVariant::Live, TrackVariant::RadioEdit]
+        );
+    }
+
+    #[test]
+    fn a_name_that_begins_with_a_marker_word_survives() {
+        // `residue` trims vocabulary off BOTH ends, which is right for deciding whether a segment
+        // can be deleted and wrong for reading a name out of it: plenty of artists are called
+        // something this file also treats as vocabulary. Crediting "Bandit" and "Killers" would be
+        // worse than crediting nobody.
+        assert_eq!(
+            remixer("Song (Clean Bandit Remix)").as_deref(),
+            Some("Clean Bandit")
+        );
+        assert_eq!(
+            remixer("Song (The Killers Remix)").as_deref(),
+            Some("The Killers")
+        );
+        // And "Clean" here is part of a band's name, not a content rating.
+        assert_eq!(strip_title("Song (Clean Bandit Remix)").advisory, None);
+        // A rating still reads when the segment really is only the rating.
+        assert_eq!(strip_title("Song (Clean)").advisory, Some("clean"));
+    }
+
+    #[test]
+    fn a_year_is_not_read_out_of_a_venue_name() {
+        // "Wembley Arena 1985" and "Wembley Arena 1986" have to be one place, or grouping by venue
+        // counts every night as somewhere new.
+        let a = strip_title("Song (Live at Wembley Arena 1985)");
+        let b = strip_title("Song (Live at Wembley Arena, 1986)");
+        assert_eq!(a.venue, b.venue);
+        assert_eq!(a.recorded_year, Some(1985));
+        assert_eq!(b.recorded_year, Some(1986));
     }
 
     #[test]

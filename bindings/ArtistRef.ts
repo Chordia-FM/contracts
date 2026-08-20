@@ -3,4 +3,15 @@
 /**
  * A reference to one artist (for rendering a track's per-artist links).
  */
-export type ArtistRef = { id: string, name: string, };
+export type ArtistRef = { id: string, name: string, 
+/**
+ * The artist's own picture, as a Hub-relative `/v1/images/{hash}` path.
+ *
+ * Here rather than fetched on demand because of where these are used: an artist reference is
+ * what a track row and the player bar have, and both attach that artist's context menu, whose
+ * header shows the thing you are acting on. Without the picture on the wire every one of those
+ * menus fell back to a monogram while the same artist's menu opened from a card showed a photo
+ * — and the hook that builds the menu runs for every row, so fetching it there would be one
+ * request per visible track.
+ */
+image_url?: string | null, };

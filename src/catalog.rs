@@ -344,6 +344,16 @@ pub struct BrowseAlbum {
 pub struct ArtistRef {
     pub id: Uuid,
     pub name: String,
+    /// The artist's own picture, as a Hub-relative `/v1/images/{hash}` path.
+    ///
+    /// Here rather than fetched on demand because of where these are used: an artist reference is
+    /// what a track row and the player bar have, and both attach that artist's context menu, whose
+    /// header shows the thing you are acting on. Without the picture on the wire every one of those
+    /// menus fell back to a monogram while the same artist's menu opened from a card showed a photo
+    /// — and the hook that builds the menu runs for every row, so fetching it there would be one
+    /// request per visible track.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub image_url: Option<String>,
 }
 
 /// A track row as shown in a list. `library_id` tells the player which library to stream from.

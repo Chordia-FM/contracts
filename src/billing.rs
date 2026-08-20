@@ -158,6 +158,14 @@ pub struct PlansResponse {
     pub billing_enabled: bool,
     /// Paid plans only — Free is the absence of a subscription, not a product.
     pub plans: Vec<PlanInfo>,
+    /// How far back Free can read its own listening history, in days. `None` = no limit.
+    ///
+    /// Here because Free is not in `plans`, and a comparison table still has to fill that cell. It
+    /// used to be hard-coded in the client, which is how it came to say one year while the server
+    /// had been giving everyone two since the window was widened. The prices on this response are
+    /// read from the server precisely so they cannot drift; the same has to be true of this.
+    #[serde(default)]
+    pub free_retention_days: Option<u32>,
 }
 
 /// `GET /v1/billing/me`. The billing view of the account, beside its entitlements.

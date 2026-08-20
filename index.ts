@@ -270,6 +270,7 @@ export * from "./bindings/Track";
 export * from "./bindings/TrackFingerprint";
 export * from "./bindings/TrackOverrideInput";
 export * from "./bindings/TrackOverrideView";
+export * from "./bindings/TrackVariant";
 export * from "./bindings/TranscodeTarget";
 export * from "./bindings/Trending";
 export * from "./bindings/UpdateInstanceSettings";

@@ -376,6 +376,13 @@ pub struct BrowseTrack {
     /// when unrated. Drives the EXPLICIT badge.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub advisory: Option<String>,
+    /// Markers lifted out of the title on the way into the catalog: `Live`, `Remaster`, and so on.
+    ///
+    /// The title above is what is LEFT once these are removed, so the two are read together: a row
+    /// shows the song's name and badges what kind of recording it is, instead of repeating
+    /// "(Album Version (Explicit))" down every line of an album. See `crate::variants`.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub variants: Vec<crate::variants::TrackVariant>,
     pub duration_ms: u32,
     /// Total times this track has been played (across the Hub).
     #[serde(default)]

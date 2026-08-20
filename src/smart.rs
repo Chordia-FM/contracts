@@ -48,6 +48,12 @@ pub enum SmartField {
     Label,
     /// Whether the track is marked explicit.
     Explicit,
+    /// What KIND of recording it is: live, remix, instrumental, remaster and so on, from the
+    /// markers lifted out of the title (see [`crate::variants`]).
+    ///
+    /// The point of it is exclusion. "A hundred tracks that are not live and not instrumental" is
+    /// the request this exists to express, and it was not expressible at all before.
+    VersionType,
 }
 
 /// How a condition compares the field to its value.

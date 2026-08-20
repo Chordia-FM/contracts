@@ -53,3 +53,4 @@ pub mod social;
 pub mod streaming;
 pub mod suggestions;
 pub mod user;
+pub mod variants;

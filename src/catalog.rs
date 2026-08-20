@@ -376,6 +376,13 @@ pub struct BrowseTrack {
     /// when unrated. Drives the EXPLICIT badge.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub advisory: Option<String>,
+    /// Markers lifted out of the title on the way into the catalog: `Live`, `Remaster`, and so on.
+    ///
+    /// The title above is what is LEFT once these are removed, so the two are read together: a row
+    /// shows the song's name and badges what kind of recording it is, instead of repeating
+    /// "(Album Version (Explicit))" down every line of an album. See `crate::variants`.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub variants: Vec<crate::variants::TrackVariant>,
     pub duration_ms: u32,
     /// Total times this track has been played (across the Hub).
     #[serde(default)]
@@ -764,6 +771,27 @@ pub struct PlaylistPatch {
     /// Set the description back to NULL. Takes precedence over `description`.
     #[serde(default)]
     pub clear_description: bool,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub visibility: Option<PlaylistVisibility>,
+}
+
+/// Body of `POST /v1/playlists`.
+///
+/// Only `name` is required, and a body of `{"name": "…"}` behaves exactly as it did when that was
+/// the whole shape — the two additions are `#[serde(default)]` so an older client keeps working.
+///
+/// They exist because creation used to be a one-field prompt, which meant the two decisions that
+/// matter most about a playlist were made *after* it existed: a new playlist was public-by-default
+/// in effect, since nobody visits a settings dialog to lock down something they just made. Asking
+/// once, at the moment of naming, is both fewer steps and a safer default.
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export))]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+pub struct CreatePlaylistRequest {
+    pub name: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub description: Option<String>,
+    /// Omitted means [`PlaylistVisibility::Private`] — the same thing the column defaults to.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub visibility: Option<PlaylistVisibility>,
 }

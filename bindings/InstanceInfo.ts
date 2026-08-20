@@ -52,4 +52,10 @@ discord_client_id?: string | null,
  *
  * Public because it themes the sign-in and landing screens, which nobody is signed in to.
  */
-accent?: string | null, };
+accent?: string | null, 
+/**
+ * Whether this deployment sells subscriptions. False on a self-hosted Hub with no payment
+ * provider configured — which is the default, and where every client must render no pricing,
+ * no plan tab and no upsell at all.
+ */
+billing_enabled: boolean, };

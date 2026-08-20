@@ -12,7 +12,11 @@ use uuid::Uuid;
 #[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export))]
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 pub struct SuggestionFieldInput {
-    /// `image` | `banner` | `name` | `bio` | `genres`.
+    /// What is being proposed, keyed by CONCEPT rather than by column so one review queue serves
+    /// every entity kind: `name` is an artist's name and an album's or track's title, `image` is the
+    /// primary artwork. Which keys are accepted depends on `MetadataSuggestionInput::entity_type` —
+    /// artists take `image`/`banner`/`name`/`bio`/`genres`, albums take
+    /// `image`/`name`/`genres`/`year`/`release_date`/`label`/`album_type`, tracks take `name`.
     pub field: String,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub value_text: Option<String>,
@@ -26,7 +30,7 @@ pub struct SuggestionFieldInput {
 #[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export))]
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 pub struct MetadataSuggestionInput {
-    /// Only `artist` is supported today.
+    /// `artist` | `album` | `track`.
     pub entity_type: String,
     pub entity_id: Uuid,
     #[serde(default, skip_serializing_if = "Option::is_none")]

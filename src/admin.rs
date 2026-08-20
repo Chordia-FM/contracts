@@ -32,7 +32,10 @@ pub type AuditDiff = BTreeMap<String, Option<String>>;
 pub struct AdminUserRow {
     pub id: Uuid,
     pub handle: String,
-    pub email: String,
+    /// Absent for an account that has never had one — a Discord sign-in that did not share an
+    /// address creates exactly that, and `users.email` is nullable to match.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub email: Option<String>,
     pub display_name: String,
     pub created_at_ms: EpochMillis,
     pub suspended: bool,
@@ -326,7 +329,9 @@ pub struct AdminSystemHealth {
 pub struct AdminUserDetail {
     pub id: Uuid,
     pub handle: String,
-    pub email: String,
+    /// See [`AdminUserRow::email`].
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub email: Option<String>,
     pub display_name: String,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub avatar_url: Option<String>,
@@ -407,6 +412,18 @@ pub struct AdminUserProfile {
     pub libraries: Vec<AdminUserLibrary>,
     /// This account's recent history as a TARGET of admin action, not as an actor.
     pub recent_audit: Vec<AuditEntry>,
+    /// Every badge this account carries, assignable or not.
+    ///
+    /// The full list rather than just the two an admin can change, because the derived ones are
+    /// context an admin needs: whether someone is already a paying supporter changes whether comping
+    /// them a staff role is generous or redundant. The editor renders the assignable pair and shows
+    /// the rest as read-only.
+    #[serde(default)]
+    pub badges: Vec<crate::billing::ProfileBadge>,
+    /// The live admin comp, if this account has one. Shown so an admin can see what is already
+    /// granted before granting again, and so revoking has something to revoke.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub plan_grant: Option<crate::billing::AdminPlanGrantView>,
 }
 
 /// What an admin is changing about the deployment itself. Omitted fields are left alone.

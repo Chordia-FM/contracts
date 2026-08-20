@@ -6,6 +6,29 @@ import type { SmartRules } from "./SmartRules";
  */
 export type SmartPlaylist = { id: string, name: string, created_at: bigint, rules: SmartRules, 
 /**
+ * User-set cover, if any. Takes precedence over `auto_cover_urls`.
+ *
+ * Deliberately the same pair of fields a regular [`crate::catalog::Playlist`] carries, rather
+ * than the icon slug this used to be: a smart playlist is a playlist, and having one kind wear
+ * a picture and the other a glyph made them read as different species in the same sidebar.
+ */
+cover_url?: string | null, 
+/**
+ * Up to 4 distinct album covers from the current snapshot, for an auto mosaic when no
+ * `cover_url` is set. Follows the rules, so it re-shuffles as the playlist does.
+ */
+auto_cover_urls: Array<string>, 
+/**
+ * Re-resolve the rules once the playlist has been played to the end, on top of any timed
+ * schedule.
+ *
+ * The point is a list that renews itself as you finish it rather than on a clock you have to
+ * guess at: "on repeat this month" is most useful the moment you have heard all of it. It is
+ * the CLIENT that reports this, because only the client knows a queue ran out, and only the
+ * queue knows which playlist it came from.
+ */
+refresh_on_complete: boolean, 
+/**
  * Minutes between automatic refreshes; [`SMART_REFRESH_NEVER`] (`0`) = manual only.
  */
 refresh_interval_minutes: number, 

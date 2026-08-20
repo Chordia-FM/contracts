@@ -6,6 +6,47 @@
 
 use serde::{Deserialize, Serialize};
 
+// ── Listing ─────────────────────────────────────────────────────────────────────────────────────
+
+/// Which catalog table an override points at.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export))]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+pub enum OverrideKind {
+    Artist,
+    Album,
+    Track,
+}
+
+/// One override a library owner has set, as their settings page lists them.
+///
+/// The point of this shape is that the page could previously only ANSWER "what have I set on this
+/// artist" and never "what have I set at all" — the editor was search-first, so an override you
+/// forgot about was invisible until you went looking for the exact entity again.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export))]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+pub struct LibraryOverrideSummary {
+    pub kind: OverrideKind,
+    /// The catalog entity the override applies to.
+    pub id: crate::Uuid,
+    /// What it is called AFTER the override, so the row reads as the library actually shows it.
+    pub name: String,
+    /// The canonical name, present only when the override CHANGES it. Absent means the name is
+    /// inherited and the row is showing the catalog's own.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub original_name: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub image_url: Option<String>,
+    /// Field names this override actually sets, so the row can say what was changed rather than
+    /// only that something was. Names match the override input fields (`title`, `year`, `genres`…).
+    pub fields: Vec<String>,
+    /// Whether this edit also takes over the global catalog.
+    pub override_main: bool,
+    pub updated_at: crate::EpochMillis,
+}
+
 // ── Artist ──────────────────────────────────────────────────────────────────────────────────────
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]

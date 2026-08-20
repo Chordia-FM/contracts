@@ -69,6 +69,24 @@ pub struct ListeningEvent {
     pub playlist_id: Option<Uuid>,
 }
 
+/// An owner's correction to one of their own listening events
+/// (`PATCH /v1/scrobbles/{event_id}`, a Super-Sonic capability).
+///
+/// At least one field must be present. Re-attributing (`track_id`) rewrites the event's canonical
+/// ids AND its denormalized display text together; moving it (`started_at`) may relocate the row
+/// to a different monthly partition. Either way the rollups are repaired by exact recompute.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export))]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+pub struct ScrobbleEdit {
+    /// Re-attribute the play to this track (must be in a library the caller can access).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub track_id: Option<Uuid>,
+    /// Move the play to this start time (epoch millis, bounded to [2000-01-01, now + 5 min]).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub started_at: Option<EpochMillis>,
+}
+
 /// A batch flush of buffered events (`POST /v1/scrobbles:batch`). Clients buffer offline and
 /// flush on reconnect.
 #[derive(Debug, Clone, Serialize, Deserialize)]

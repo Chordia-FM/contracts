@@ -4,4 +4,4 @@
  * Aggregation window for a stats report. Mirrors the Last.fm-style windows: 7-day, 1/3/6/12
  * month, and all-time.
  */
-export type Period = "day" | "week" | "month" | "quarter" | "half_year" | "year" | "overall";
+export type Period = "day" | "week" | "month" | "quarter" | "half_year" | "year" | "overall" | "custom";

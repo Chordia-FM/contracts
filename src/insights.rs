@@ -27,6 +27,13 @@ pub enum Period {
     Year,
     /// All recorded history.
     Overall,
+    /// An explicit `[from, to)` range chosen by the caller (Deep Analytics). Only ever *produced*,
+    /// as the echoed `period` of a report that was requested with both `from` and `to` bounds —
+    /// `skip_deserializing` means no query can name it directly, so period-driven windows
+    /// (playlist stats, movers, discovery) can never receive it by accident. The report's real
+    /// bounds are its `window_start`/`window_end`.
+    #[serde(skip_deserializing)]
+    Custom,
 }
 
 /// A figure measured against the equivalent preceding window, so a number can be read as a trend
@@ -226,6 +233,70 @@ pub struct TopItem {
     pub image_url: Option<String>,
 }
 
+/// One month in the growth of the caller's liked songs.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export))]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+pub struct LikedPoint {
+    /// First day of the month, `YYYY-MM-DD`.
+    pub month: String,
+    /// Liked tracks held at the END of that month.
+    ///
+    /// Counted from the likes that are STILL IN PLACE, because an unlike leaves no record: the row
+    /// is deleted, so a song liked in March and unliked in April was never here as far as this can
+    /// tell. The line therefore reads "how your current collection accumulated", not "how many
+    /// songs you had liked at the time", and those are different questions with the same shape.
+    pub total: u32,
+}
+
+/// One artist's share of the caller's liked songs.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export))]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+pub struct LikedArtist {
+    pub id: Uuid,
+    pub name: String,
+    /// Liked tracks credited to this artist. Deliberately not a play count — this list answers
+    /// "whose songs did you keep", which is a different ranking from "whose songs did you play".
+    pub liked: u32,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub image_url: Option<String>,
+}
+
+/// The caller's liked songs in numbers, for the disclosure on the Liked Songs page.
+///
+/// Everything derived from listening honours the caller's retention floor, so the ratios below
+/// describe the window their insights already show rather than quietly reaching past it.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export))]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+pub struct LikedStats {
+    /// Liked tracks right now.
+    pub total: u32,
+    /// Their combined length. `0` when none of them resolve to a catalog track with a duration.
+    pub total_duration_ms: u64,
+    /// Oldest and newest like still in place.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub first_liked: Option<EpochMillis>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub last_liked: Option<EpochMillis>,
+    /// Cumulative growth, one point per month from the first like to now.
+    pub history: Vec<LikedPoint>,
+    /// Distinct tracks the caller has played inside the retention window.
+    pub played_tracks: u32,
+    /// How many of those they went on to like. With `played_tracks` at 0 the ratio is undefined,
+    /// which is why both numbers are sent rather than a percentage computed here.
+    pub played_liked: u32,
+    /// Liked tracks with no play on record in the window. "Saved for later" made countable.
+    pub never_played: u32,
+    /// The caller's plays across their liked tracks.
+    pub liked_plays: u64,
+    /// The caller's most-played tracks that they have NOT liked — the songs the heart missed.
+    pub unliked_favourites: Vec<TopItem>,
+    /// Artists best represented in the liked list.
+    pub top_artists: Vec<LikedArtist>,
+}
+
 /// One consecutive run of active listening days.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export))]
@@ -298,6 +369,14 @@ pub struct ListeningRecords {
     pub milestones: Vec<Milestone>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub first_scrobble: Option<Milestone>,
+    /// True when the day-grained figures could not be computed yet: the UTC report is served from
+    /// the daily rollup, and on a Hub whose aggregator has never completed a pass there is no
+    /// rollup to read. The streaks, `active_days`, the averages and `biggest_day` above are then
+    /// placeholders rather than facts, and a client should say "still being computed" instead of
+    /// rendering a zero-day history as if it were real. Sessions and milestones are unaffected
+    /// (they scan the fact table directly), as are non-UTC reports.
+    #[serde(default)]
+    pub day_stats_pending: bool,
 }
 
 /// How many distinct catalog entities were played and newly discovered in a reporting window.
@@ -557,6 +636,76 @@ pub struct Compatibility {
     pub score: f32,
     /// Artists both users have played, most-shared first (capped).
     pub shared_artists: Vec<TopItem>,
+    /// The detailed breakdown behind the score. Present only when the VIEWER's plan includes
+    /// `taste_match_summary`; omitted entirely otherwise, so the free shape is byte-identical to
+    /// what it was before the field existed.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub summary: Option<TasteSummary>,
+}
+
+/// The paid deep-dive behind a compatibility score: what two listeners share, when they both
+/// listen, and what they found at the same time. Every figure is bounded by each side's OWN
+/// retention window — a paid viewer buys no reach into a free friend's hidden history.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export))]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+pub struct TasteSummary {
+    /// Albums both have played, ranked by the smaller of the two play counts (`plays` carries that
+    /// shared strength), top 10.
+    pub shared_albums: Vec<TopItem>,
+    /// Tracks both have played, ranked and capped like `shared_albums`.
+    pub shared_tracks: Vec<TopItem>,
+    /// Album genres both have played. `id` is a stable hash of the genre name (genres aren't
+    /// catalog entities) and `image_url` is always absent.
+    pub shared_genres: Vec<TopItem>,
+    /// Album-release decades, one entry per decade on a continuous axis from the earliest decade
+    /// either side has played through the latest.
+    pub decades: Vec<DecadeSplit>,
+    /// Histogram intersection (0.0 to 1.0) of the two decade distributions: 1.0 means the same
+    /// era shares, 0.0 means no overlap at all. 0.0 when either side has no dated plays.
+    pub era_overlap: f32,
+    /// Plays by local hour of day over the trailing 90 days, exactly 24 entries (index = hour).
+    /// Each side's hours are measured in their own timezone — the comparison is "when in your day
+    /// do you each listen", not "are you awake at the same instant".
+    pub hours: Vec<HourSplit>,
+    /// Histogram intersection (0.0 to 1.0) of the two hour-of-day distributions.
+    pub time_overlap: f32,
+    /// Artists whose first listen (week-grained) happened in the same week for both sides, with at
+    /// least 5 plays each, strongest shared interest first, top 5.
+    pub discovered_together: Vec<DiscoveredTogether>,
+}
+
+/// One decade's plays, yours against theirs.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export))]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+pub struct DecadeSplit {
+    /// The decade's first year, for example `1990`.
+    pub decade: i32,
+    pub you: i64,
+    pub them: i64,
+}
+
+/// One local hour of day's plays, yours against theirs.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export))]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+pub struct HourSplit {
+    /// Local hour of day, 0 to 23.
+    pub hour: i32,
+    pub you: i64,
+    pub them: i64,
+}
+
+/// Something both listeners first played in the same week.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export))]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+pub struct DiscoveredTogether {
+    /// Display name of the shared discovery (an artist).
+    pub item: String,
+    /// The calendar month the shared first week falls in, `YYYY-MM`.
+    pub month: String,
 }
 
 /// A user's shareable public listening profile. Listening stats are populated only when the viewer
@@ -635,6 +784,28 @@ pub struct PublicProfile {
     /// empty contract as `playlists`.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub followed_artists: Option<Vec<crate::social::ProfileArtist>>,
+    /// Badges this account carries. Present on the locked shell too: a badge is identity, like the
+    /// handle, and withholding it would make a moderator unrecognisable on exactly the profile where
+    /// knowing they are staff matters.
+    #[serde(default)]
+    pub badges: Vec<crate::billing::ProfileBadge>,
+    /// The accent this profile paints itself in for visitors, when the owner is entitled to it and
+    /// the viewer has not opted out of seeing other people's accents.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub accent: Option<ProfileAccent>,
+}
+
+/// A profile's own colour, applied to that page only.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export))]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+pub struct ProfileAccent {
+    /// A CSS colour. Already resolved: a time-varying accent is flattened, because a visitor's page
+    /// must not animate.
+    pub primary: String,
+    /// Two or more stops when the owner chose a gradient; empty otherwise.
+    #[serde(default)]
+    pub gradient: Vec<String>,
 }
 
 /// Listening stats for one playlist, behind `GET /v1/playlists/{id}/stats`.

@@ -30,4 +30,13 @@ top_sessions: Array<ListeningSession>,
 /**
  * Round-number play milestones, ascending.
  */
-milestones: Array<Milestone>, first_scrobble?: Milestone | null, };
+milestones: Array<Milestone>, first_scrobble?: Milestone | null, 
+/**
+ * True when the day-grained figures could not be computed yet: the UTC report is served from
+ * the daily rollup, and on a Hub whose aggregator has never completed a pass there is no
+ * rollup to read. The streaks, `active_days`, the averages and `biggest_day` above are then
+ * placeholders rather than facts, and a client should say "still being computed" instead of
+ * rendering a zero-day history as if it were real. Sessions and milestones are unaffected
+ * (they scan the fact table directly), as are non-UTC reports.
+ */
+day_stats_pending: boolean, };

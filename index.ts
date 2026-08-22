@@ -130,6 +130,7 @@ export * from "./bindings/GenreDetail";
 export * from "./bindings/GenreSummary";
 export * from "./bindings/GenreTrend";
 export * from "./bindings/GenreTrendBucket";
+export * from "./bindings/GrantRequest";
 export * from "./bindings/HeartbeatRequest";
 export * from "./bindings/HeartbeatResponse";
 export * from "./bindings/HistoryEntry";
@@ -268,13 +269,6 @@ export * from "./bindings/WrappedReport";
 // ── Hand-declared overrides of generated bindings ────────────────────────────
 
 /** Hub capability grant request - asks the Hub for a short-lived streaming token. */
-export interface GrantRequest {
-	library_id: string;
-	resource?: import("./bindings/ResourceRef").ResourceRef;
-	action?: import("./bindings/CapabilityAction").CapabilityAction;
-	room_id?: string;
-}
-
 /** Hub capability grant response. */
 export interface GrantResponse {
 	token: string;

@@ -12,7 +12,7 @@ export type AlbumTrackCoverage = {
  */
 rg_mbid: string, title: string, cover_url?: string | null, 
 /**
- * The album artist's MusicBrainz id, for download context / linking.
+ * The album artist's MusicBrainz id, for linking.
  */
 artist_mbid?: string | null, 
 /**

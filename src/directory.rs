@@ -60,8 +60,12 @@ pub struct ResolvedServer {
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 pub struct GrantRequest {
     pub library_id: Uuid,
-    pub resource: ResourceRef,
-    pub action: CapabilityAction,
+    /// What the token covers. Omit for the whole library, which is the ordinary streaming case.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub resource: Option<ResourceRef>,
+    /// What the token permits. Omit for [`CapabilityAction::StreamRead`].
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub action: Option<CapabilityAction>,
     /// Room context, required for relay grants.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub room_id: Option<Uuid>,

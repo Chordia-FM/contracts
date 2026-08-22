@@ -147,27 +147,19 @@ The MVP milestones below (M0 through M6) are complete across `contracts`, `backe
 Beyond the MVP, the app has grown a lot: discovery and recommendations, playlists and smart
 playlists, deeper social features, offline and PWA support, crossfade, an equalizer, a visualizer,
 localization, a published OpenAPI spec, and the Manager (see section 8): discography coverage,
-browse-all discovery, artist follows, metadata suggestions, and opt-in self-hosted acquisition.
+browse-all discovery, artist follows, and metadata suggestions.
 
 Still foundational: the `dj` realtime listening rooms and the relay path that rides on the sharing
 model, plus the `mobile` native bit-perfect and Atmos modules.
 
-## 8. Library manager & acquisition
+## 8. Library manager
 
-The **Manager** is a Hub-side layer for keeping a collection complete. It caches each artist's
+The **Manager** is a Hub-side layer for seeing how complete a collection is. It caches each artist's
 MusicBrainz discography in `ext_*` tables, compares it against what a user's libraries actually own
 to produce **coverage** (album- and artist-level), and powers **browse-all discovery** and **artist
-follows** across the whole of MusicBrainz rather than only owned music. Background workers keep the
-cache and cover art fresh.
-
-**Acquisition stays on the data plane.** Filling a gap is a two-party job. The Hub only queues and
-tracks **download jobs** (one per target library) and never downloads or sees audio. A self-hosted
-library, once its operator opts in, claims jobs off the Hub queue, searches the operator's own
-**Prowlarr**, scores candidates against a **quality profile** (highest quality wins), hands the pick
-to the operator's **qBittorrent**, and imports the finished files locally so they index and sync like
-any other track. Chordia ships no indexers or trackers. Downloads are off by default and gated behind
-an explicit in-app acknowledgement, and the operator is responsible for the legality of what they
-acquire.
+follows** across the whole of MusicBrainz rather than only owned music. Following an artist is purely
+a release notification: the Hub watches the cached discography for new entries and tells the follower
+about them. Background workers keep the discography cache and cover art fresh.
 
 Readers can also submit **metadata suggestions** (name, bio, genres, images) from an artist's Report
 modal; each field is stored separately and applied to the canonical catalog on admin approval.

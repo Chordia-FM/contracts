@@ -9,14 +9,6 @@ export type ManagerPrefs = {
  */
 include_shared: boolean, 
 /**
- * Default destination library for downloads.
+ * Default library to scope Manager views to.
  */
-default_library_id?: string | null, 
-/**
- * Default quality profile id.
- */
-default_quality_profile_id?: string | null, 
-/**
- * One-time acknowledgement that the user is responsible for content legality (gates downloads).
- */
-acq_ack: boolean, };
+default_library_id?: string | null, };

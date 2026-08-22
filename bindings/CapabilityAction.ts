@@ -3,4 +3,4 @@
 /**
  * What a capability token authorizes the holder to do.
  */
-export type CapabilityAction = "stream_read" | "relay_pull" | "manage_acquisition" | "recover_management";
+export type CapabilityAction = "stream_read" | "relay_pull" | "recover_management";

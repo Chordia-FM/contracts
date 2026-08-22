@@ -21,7 +21,7 @@ shared, cross-repo documentation.
 - **Stack:** Rust (pure types: `serde` + `uuid`), optional `ts-rs` for TS generation.
 - **Responsibilities:** auth/capability tokens, users, social, libraries/shares, server
   directory, catalog + fingerprints, streaming/quality, scrobbles, insights, room messages,
-  Manager (coverage/discovery/follows), acquisition + download jobs, metadata suggestions.
+  Manager (coverage/discovery/follows), metadata suggestions.
 - **Talks to:** nobody, it's a dependency, not a service.
 - **MSRV:** `1.85` (current stable), consistent with the rest of the workspace.
 

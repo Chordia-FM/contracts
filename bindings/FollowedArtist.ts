@@ -3,4 +3,4 @@
 /**
  * A followed artist, as shown in the follows list.
  */
-export type FollowedArtist = { artist_mbid: string, name?: string | null, image_url?: string | null, owned_artist_id?: string | null, auto_download: boolean, target_library_id?: string | null, monitor_types: Array<string>, created_at: bigint, };
+export type FollowedArtist = { artist_mbid: string, name?: string | null, image_url?: string | null, owned_artist_id?: string | null, monitor_types: Array<string>, created_at: bigint, };

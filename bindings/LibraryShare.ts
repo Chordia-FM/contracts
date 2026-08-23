@@ -5,8 +5,4 @@ import type { PublicUser } from "./PublicUser";
 /**
  * A share grant: which user may access which library, at what level.
  */
-export type LibraryShare = { library_id: string, grantee: PublicUser, permission_level: PermissionLevel, 
-/**
- * Whether the grantee may queue acquisition (download) requests INTO this library.
- */
-can_request: boolean, created_at: bigint, };
+export type LibraryShare = { library_id: string, grantee: PublicUser, permission_level: PermissionLevel, created_at: bigint, };

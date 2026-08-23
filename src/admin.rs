@@ -270,15 +270,6 @@ pub struct AdminRollupStat {
     pub last_event_ms: EpochMillis,
 }
 
-/// A count of download jobs in one status.
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export))]
-#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
-pub struct AdminQueueStat {
-    pub status: String,
-    pub count: i64,
-}
-
 /// A table and what it costs on disk.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export))]
@@ -311,7 +302,6 @@ pub struct AdminSystemHealth {
     pub db_bytes: i64,
     pub listening_events_partitions: i64,
     pub rollups: Vec<AdminRollupStat>,
-    pub queue: Vec<AdminQueueStat>,
     pub biggest_tables: Vec<AdminTableSize>,
     pub enrichment: AdminEnrichmentBacklog,
 }

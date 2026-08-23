@@ -4,8 +4,4 @@ import type { PermissionLevel } from "./PermissionLevel";
 /**
  * Create or update a share (Hub-side, requires an accepted friendship).
  */
-export type ShareRequest = { library_id: string, grantee_id: string, permission_level: PermissionLevel, 
-/**
- * Allow the grantee to queue acquisition requests into this library (default false).
- */
-can_request: boolean, };
+export type ShareRequest = { library_id: string, grantee_id: string, permission_level: PermissionLevel, };

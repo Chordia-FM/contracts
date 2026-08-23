@@ -13,10 +13,18 @@ use serde::{Deserialize, Serialize};
 
 use crate::EpochMillis;
 
-/// Which installer this is.
+/// Which installable artifact this is.
 ///
 /// Deliberately more specific than an operating system: Linux ships two formats and a person on
 /// Debian wants the `.deb`, not a choice between two things called "Linux".
+///
+/// `AndroidApk` is here rather than in a type of its own because the mobile release feed
+/// (`GET /v1/mobile/latest`) answers with the same [`DesktopRelease`] shape — a version, notes, and
+/// a list of files to download. Two parallel definitions of that would have to be kept in step by
+/// hand in Rust, TypeScript and Dart, for no difference any consumer could act on. The three
+/// Android builds on a release (universal, arm64-v8a, armeabi-v7a) all carry this variant and are
+/// told apart by [`DesktopDownload::filename`]; the feed orders them so the universal APK — the one
+/// that installs on any device — is first.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 #[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export))]
@@ -26,6 +34,7 @@ pub enum DesktopPlatform {
     LinuxAppImage,
     LinuxDeb,
     MacOs,
+    AndroidApk,
 }
 
 /// One installer on the current release.

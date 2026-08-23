@@ -3,8 +3,8 @@
 //! The Manager is Chordia's Lidarr/Overseerr-style layer. It compares what a user OWNS (the Hub
 //! catalog, scoped to their libraries) against an artist's full discography (cached from
 //! MusicBrainz in the Hub `ext_*` tables) to surface coverage percentages and missing albums /
-//! tracks. Later phases add browse-all, follows, and torrent-based acquisition; their contracts are
-//! added to this module as they land.
+//! tracks. Later phases add browse-all discovery and artist follows; their contracts are added to
+//! this module as they land.
 
 use serde::{Deserialize, Serialize};
 
@@ -64,15 +64,9 @@ pub struct ManagerPrefs {
     /// Count shared-with-me libraries toward coverage.
     #[serde(default)]
     pub include_shared: bool,
-    /// Default destination library for downloads.
+    /// Default library to scope Manager views to.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub default_library_id: Option<Uuid>,
-    /// Default quality profile id.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub default_quality_profile_id: Option<Uuid>,
-    /// One-time acknowledgement that the user is responsible for content legality (gates downloads).
-    #[serde(default)]
-    pub acq_ack: bool,
 }
 
 /// Replace the set of libraries excluded from coverage (body of `PUT /v1/manager/coverage/exclusions`).
@@ -247,9 +241,6 @@ pub struct FollowedArtist {
     pub image_url: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub owned_artist_id: Option<Uuid>,
-    pub auto_download: bool,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub target_library_id: Option<Uuid>,
     #[serde(default)]
     pub monitor_types: Vec<String>,
     pub created_at: EpochMillis,
@@ -263,12 +254,6 @@ pub struct FollowInput {
     pub artist_mbid: String,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub name: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub auto_download: Option<bool>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub target_library_id: Option<Uuid>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub quality_profile_id: Option<Uuid>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub monitor_types: Option<Vec<String>>,
 }
@@ -307,7 +292,7 @@ pub struct AlbumTrackCoverage {
     pub title: String,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub cover_url: Option<String>,
-    /// The album artist's MusicBrainz id, for download context / linking.
+    /// The album artist's MusicBrainz id, for linking.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub artist_mbid: Option<String>,
     /// The album artist's display name, for the breadcrumb trail and linking back to the artist.

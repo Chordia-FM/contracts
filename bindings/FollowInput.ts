@@ -3,4 +3,4 @@
 /**
  * Follow an artist / update a follow (body of `POST /v1/manager/follows`, `PATCH .../{mbid}`).
  */
-export type FollowInput = { artist_mbid: string, name?: string | null, auto_download?: boolean | null, target_library_id?: string | null, quality_profile_id?: string | null, monitor_types?: Array<string> | null, };
+export type FollowInput = { artist_mbid: string, name?: string | null, monitor_types?: Array<string> | null, };

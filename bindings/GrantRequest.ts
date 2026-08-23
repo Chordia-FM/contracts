@@ -6,7 +6,15 @@ import type { ResourceRef } from "./ResourceRef";
  * Request a capability (or relay) token for a resource on a friend's / DJ's library
  * (`POST /v1/directory/grant`). The Hub checks friendship + share permissions before minting.
  */
-export type GrantRequest = { library_id: string, resource: ResourceRef, action: CapabilityAction, 
+export type GrantRequest = { library_id: string, 
+/**
+ * What the token covers. Omit for the whole library, which is the ordinary streaming case.
+ */
+resource?: ResourceRef | null, 
+/**
+ * What the token permits. Omit for [`CapabilityAction::StreamRead`].
+ */
+action?: CapabilityAction | null, 
 /**
  * Room context, required for relay grants.
  */

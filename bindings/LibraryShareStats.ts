@@ -5,18 +5,10 @@ import type { ShareNowStreaming } from "./ShareNowStreaming";
 
 /**
  * Per-grantee share + usage stats for the owner's library management screen ("who has access and
- * what are they doing with it"): the share itself plus request/download/listening activity
- * attributed to THIS library.
+ * what are they doing with it"): the share itself plus listening activity attributed to THIS
+ * library.
  */
-export type LibraryShareStats = { library_id: string, grantee: PublicUser, permission_level: PermissionLevel, can_request: boolean, created_at: bigint, 
-/**
- * Acquisition requests this friend has queued into this library.
- */
-requests_count: number, 
-/**
- * How many of those completed (media actually landed in the library).
- */
-downloads_completed: number, 
+export type LibraryShareStats = { library_id: string, grantee: PublicUser, permission_level: PermissionLevel, created_at: bigint, 
 /**
  * Plays this friend has streamed from this library.
  */

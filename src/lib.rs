@@ -27,7 +27,6 @@ pub type EpochMillis = i64;
 /// compatible range. See `docs/versioning.md`.
 pub const CONTRACT_VERSION: &str = env!("CARGO_PKG_VERSION");
 
-pub mod acquisition;
 pub mod admin;
 pub mod artists;
 pub mod auth;

@@ -18,6 +18,13 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
         with:
           components: rustfmt, clippy
+      # Keyed on rustc version + Cargo.lock + OS/arch, and it prunes this crate's OWN artifacts
+      # before saving, so chordia_contracts is always recompiled from the checked-out source.
+      # That is what keeps the drift gate below honest: ./bindings is a tracked git directory, so
+      # nothing here can substitute a stale generated file for a freshly generated one.
+      # Deliberately NOT `cache-on-failure`: `cargo fmt --all --check` runs first and compiles
+      # nothing, so a formatting failure would save an empty entry -- and on a full key match
+      # rust-cache skips the save, so nothing could ever replace it.
       - uses: Swatinem/rust-cache@v2
       - run: cargo fmt --all --check
       - run: cargo clippy --all-targets -- -D warnings

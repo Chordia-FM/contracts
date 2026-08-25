@@ -5,6 +5,7 @@ import type { ProfileAccent } from "./ProfileAccent";
 import type { ProfileArtist } from "./ProfileArtist";
 import type { ProfileBadge } from "./ProfileBadge";
 import type { ProfileLink } from "./ProfileLink";
+import type { ProfileNowPlaying } from "./ProfileNowPlaying";
 import type { PublicUser } from "./PublicUser";
 import type { RecentPlay } from "./RecentPlay";
 import type { TopItem } from "./TopItem";
@@ -96,4 +97,13 @@ badges: Array<ProfileBadge>,
  * The accent this profile paints itself in for visitors, when the owner is entitled to it and
  * the viewer has not opted out of seeing other people's accents.
  */
-accent?: ProfileAccent | null, };
+accent?: ProfileAccent | null, 
+/**
+ * What this listener is playing RIGHT NOW, when they are and the viewer may see it.
+ *
+ * Gated by the same `Surface::Activity` audience as the listening history below it — which is
+ * the `scrobble_privacy` setting, the one already labelled "listening activity" in Settings.
+ * A profile is the page a person shares, and "here is what I am listening to" is the single
+ * most current thing it can say; it was only ever visible to friends on the home page.
+ */
+now_playing?: ProfileNowPlaying | null, };

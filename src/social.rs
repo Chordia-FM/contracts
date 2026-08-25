@@ -72,6 +72,13 @@ pub struct FriendNowPlaying {
     pub display_name: String,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub avatar_url: Option<String>,
+    /// The name colour, resolved by the Hub exactly as it is for a [`crate::user::PublicUser`].
+    ///
+    /// Without it this rail was one of the surfaces that rendered a paid account's name in plain
+    /// text while the friends list beside it coloured the same person. The field is what the client
+    /// needs; the entitlement decision stays server-side.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub flair: Option<crate::user::UserFlair>,
     pub title: String,
     pub artist: String,
     #[serde(default, skip_serializing_if = "Option::is_none")]

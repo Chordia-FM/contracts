@@ -197,6 +197,7 @@ export * from "./bindings/ProfileAccent";
 export * from "./bindings/ProfileArtist";
 export * from "./bindings/ProfileBadge";
 export * from "./bindings/ProfileLink";
+export * from "./bindings/ProfileNowPlaying";
 export * from "./bindings/PublicProfile";
 export * from "./bindings/PublicUser";
 export * from "./bindings/QualityPreferences";

@@ -616,6 +616,10 @@ pub struct FriendScrobble {
     pub display_name: String,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub avatar_url: Option<String>,
+    /// The name colour, resolved by the Hub. Same reason as [`crate::social::FriendNowPlaying`]:
+    /// this feed rendered names in plain text beside lists that coloured the same people.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub flair: Option<crate::user::UserFlair>,
     pub title: String,
     pub artist: String,
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -793,6 +797,14 @@ pub struct PublicProfile {
     /// the viewer has not opted out of seeing other people's accents.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub accent: Option<ProfileAccent>,
+    /// What this listener is playing RIGHT NOW, when they are and the viewer may see it.
+    ///
+    /// Gated by the same `Surface::Activity` audience as the listening history below it — which is
+    /// the `scrobble_privacy` setting, the one already labelled "listening activity" in Settings.
+    /// A profile is the page a person shares, and "here is what I am listening to" is the single
+    /// most current thing it can say; it was only ever visible to friends on the home page.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub now_playing: Option<ProfileNowPlaying>,
 }
 
 /// A profile's own colour, applied to that page only.
@@ -806,6 +818,26 @@ pub struct ProfileAccent {
     /// Two or more stops when the owner chose a gradient; empty otherwise.
     #[serde(default)]
     pub gradient: Vec<String>,
+}
+
+/// What a profile's owner is playing right now.
+///
+/// Smaller than [`FriendNowPlaying`] on purpose: that one identifies WHO, because it arrives in a
+/// list of several people. A profile already knows whose it is, so repeating the handle, display
+/// name and avatar in the same payload would be three fields the page cannot use.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export))]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+pub struct ProfileNowPlaying {
+    /// The catalog track, when the report carried one — links the row to its page.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub track_id: Option<Uuid>,
+    pub title: String,
+    pub artist: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub image_url: Option<String>,
+    /// When the report landed (epoch millis).
+    pub started_at: EpochMillis,
 }
 
 /// Listening stats for one playlist, behind `GET /v1/playlists/{id}/stats`.

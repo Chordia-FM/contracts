@@ -225,6 +225,19 @@ pub struct SyncTrack {
     /// edition that folds into the base album. `None` for the standard edition.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub edition: Option<String>,
+    /// Personnel this track's album sidecar named, if the library found and trusted one.
+    ///
+    /// Empty is the overwhelmingly common case (no sidecar), so it is skipped on the wire rather than
+    /// sent as `[]` for every track in a 500-track batch.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub credits: Vec<crate::credits::SyncCredit>,
+    /// SHA-256 of the sidecar those credits were parsed from.
+    ///
+    /// The Hub stores it and skips the rewrite when it is unchanged. Without it, every sync would
+    /// delete and re-insert the credit rows of every track that has any - a write amplification
+    /// paid every three minutes, forever, to change nothing.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub credits_hash: Option<String>,
     /// Content advisory from the file's iTunes/ID3 rating tag: `"explicit"` or `"clean"`; `None` when
     /// unrated. Drives the EXPLICIT badge.
     #[serde(default, skip_serializing_if = "Option::is_none")]

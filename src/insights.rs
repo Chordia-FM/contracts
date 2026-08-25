@@ -880,6 +880,64 @@ pub struct PlaylistStats {
     pub tracking_since: EpochMillis,
 }
 
+/// Listening stats for one library, behind `GET /v1/libraries/{id}/stats`.
+///
+/// Its own type rather than a widened [`EntityKind`], for exactly the reason [`PlaylistStats`]
+/// gives: a library is not a catalog entity — there is no `libraries` row in the catalog tables at
+/// all — and the entity path switches exhaustively over the kind on both sides, so widening it
+/// would cost a new arm in every one of those matches plus a client-reachable `kind=library` that
+/// every ranked-chart query would then have to refuse.
+///
+/// Answers the question a library page cannot answer today: this is where the music actually comes
+/// from, and until now the page could say how many tracks it holds and nothing about whether any of
+/// them get played.
+///
+/// **Storage bytes are absent on purpose.** Only the library server knows file sizes, and the
+/// catalog sync payload has never carried them, so any figure here would be invented. Adding a
+/// nullable field would put a permanent zero on the page; widening the sync payload is the honest
+/// way to get it, and that is a separate change.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export))]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+pub struct LibraryStats {
+    pub id: Uuid,
+    pub period: Period,
+    pub window_start: EpochMillis,
+    pub window_end: EpochMillis,
+    pub granularity: BucketGranularity,
+    /// Whose plays these figures cover. Echoed back so a panel can label itself honestly rather
+    /// than trusting the toggle it sent.
+    #[serde(default)]
+    pub scope: StatsScope,
+    pub total_plays: u32,
+    pub total_ms_played: u64,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub first_played: Option<EpochMillis>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub last_played: Option<EpochMillis>,
+    /// Distinct listeners in the window — the owner plus everyone they share with. Unlike the
+    /// playlist equivalent this is meaningful in `Me` scope too, because a library's whole point is
+    /// that other people stream from it.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub unique_listeners: Option<u32>,
+    /// Local-calendar play trend (chronological).
+    pub trend: Vec<TimeBucket>,
+    pub top_tracks: Vec<TopItem>,
+    pub top_artists: Vec<TopItem>,
+    pub top_albums: Vec<TopItem>,
+    /// Tracks this library holds, from the catalog rather than the fact table.
+    pub track_count: u32,
+    /// Distinct tracks of this library played in the window, so the page can say "you have played
+    /// 412 of 5,120" — the shape of question a personal library invites and a streaming service
+    /// cannot ask.
+    pub tracks_played: u32,
+    /// When per-library attribution began (epoch millis). Plays recorded before
+    /// `listening_events.library_id` shipped carry no library context; they are recovered where the
+    /// track is still held by exactly this library, but that recovery is best-effort and the panel
+    /// must be able to say so.
+    pub tracking_since: EpochMillis,
+}
+
 /// Lightweight "recently played" feed item for the home view.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export))]

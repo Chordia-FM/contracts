@@ -616,6 +616,10 @@ pub struct FriendScrobble {
     pub display_name: String,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub avatar_url: Option<String>,
+    /// The name colour, resolved by the Hub. Same reason as [`crate::social::FriendNowPlaying`]:
+    /// this feed rendered names in plain text beside lists that coloured the same people.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub flair: Option<crate::user::UserFlair>,
     pub title: String,
     pub artist: String,
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -793,6 +797,14 @@ pub struct PublicProfile {
     /// the viewer has not opted out of seeing other people's accents.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub accent: Option<ProfileAccent>,
+    /// What this listener is playing RIGHT NOW, when they are and the viewer may see it.
+    ///
+    /// Gated by the same `Surface::Activity` audience as the listening history below it — which is
+    /// the `scrobble_privacy` setting, the one already labelled "listening activity" in Settings.
+    /// A profile is the page a person shares, and "here is what I am listening to" is the single
+    /// most current thing it can say; it was only ever visible to friends on the home page.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub now_playing: Option<ProfileNowPlaying>,
 }
 
 /// A profile's own colour, applied to that page only.
@@ -806,6 +818,26 @@ pub struct ProfileAccent {
     /// Two or more stops when the owner chose a gradient; empty otherwise.
     #[serde(default)]
     pub gradient: Vec<String>,
+}
+
+/// What a profile's owner is playing right now.
+///
+/// Smaller than [`FriendNowPlaying`] on purpose: that one identifies WHO, because it arrives in a
+/// list of several people. A profile already knows whose it is, so repeating the handle, display
+/// name and avatar in the same payload would be three fields the page cannot use.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export))]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+pub struct ProfileNowPlaying {
+    /// The catalog track, when the report carried one — links the row to its page.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub track_id: Option<Uuid>,
+    pub title: String,
+    pub artist: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub image_url: Option<String>,
+    /// When the report landed (epoch millis).
+    pub started_at: EpochMillis,
 }
 
 /// Listening stats for one playlist, behind `GET /v1/playlists/{id}/stats`.
@@ -845,6 +877,64 @@ pub struct PlaylistStats {
     pub top_tracks: Vec<TopItem>,
     /// When playlist attribution began (epoch millis). Plays recorded before this have no playlist
     /// context and can never be attributed, so the UI must state the limitation.
+    pub tracking_since: EpochMillis,
+}
+
+/// Listening stats for one library, behind `GET /v1/libraries/{id}/stats`.
+///
+/// Its own type rather than a widened [`EntityKind`], for exactly the reason [`PlaylistStats`]
+/// gives: a library is not a catalog entity — there is no `libraries` row in the catalog tables at
+/// all — and the entity path switches exhaustively over the kind on both sides, so widening it
+/// would cost a new arm in every one of those matches plus a client-reachable `kind=library` that
+/// every ranked-chart query would then have to refuse.
+///
+/// Answers the question a library page cannot answer today: this is where the music actually comes
+/// from, and until now the page could say how many tracks it holds and nothing about whether any of
+/// them get played.
+///
+/// **Storage bytes are absent on purpose.** Only the library server knows file sizes, and the
+/// catalog sync payload has never carried them, so any figure here would be invented. Adding a
+/// nullable field would put a permanent zero on the page; widening the sync payload is the honest
+/// way to get it, and that is a separate change.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export))]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+pub struct LibraryStats {
+    pub id: Uuid,
+    pub period: Period,
+    pub window_start: EpochMillis,
+    pub window_end: EpochMillis,
+    pub granularity: BucketGranularity,
+    /// Whose plays these figures cover. Echoed back so a panel can label itself honestly rather
+    /// than trusting the toggle it sent.
+    #[serde(default)]
+    pub scope: StatsScope,
+    pub total_plays: u32,
+    pub total_ms_played: u64,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub first_played: Option<EpochMillis>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub last_played: Option<EpochMillis>,
+    /// Distinct listeners in the window — the owner plus everyone they share with. Unlike the
+    /// playlist equivalent this is meaningful in `Me` scope too, because a library's whole point is
+    /// that other people stream from it.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub unique_listeners: Option<u32>,
+    /// Local-calendar play trend (chronological).
+    pub trend: Vec<TimeBucket>,
+    pub top_tracks: Vec<TopItem>,
+    pub top_artists: Vec<TopItem>,
+    pub top_albums: Vec<TopItem>,
+    /// Tracks this library holds, from the catalog rather than the fact table.
+    pub track_count: u32,
+    /// Distinct tracks of this library played in the window, so the page can say "you have played
+    /// 412 of 5,120" — the shape of question a personal library invites and a streaming service
+    /// cannot ask.
+    pub tracks_played: u32,
+    /// When per-library attribution began (epoch millis). Plays recorded before
+    /// `listening_events.library_id` shipped carry no library context; they are recovered where the
+    /// track is still held by exactly this library, but that recovery is best-effort and the panel
+    /// must be able to say so.
     pub tracking_since: EpochMillis,
 }
 

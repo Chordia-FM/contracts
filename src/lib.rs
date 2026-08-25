@@ -33,6 +33,7 @@ pub mod auth;
 pub mod backups;
 pub mod billing;
 pub mod catalog;
+pub mod credits;
 pub mod desktop;
 pub mod directory;
 pub mod discovery;

@@ -64,15 +64,44 @@ jobs:
     runs-on: blacksmith-2vcpu-ubuntu-2404-arm
     steps:
       - uses: actions/checkout@v7
-      - uses: dtolnay/rust-toolchain@stable
+      # NOT every `v*` tag in this repository is a release of this crate.
+      #
+      # The desktop app's releases are MIRRORED here, because `frontend` is private and GitHub will
+      # not serve its release assets to an unauthenticated updater (see `release.yml` there). That
+      # mirror creates a release, a release needs a tag, and the tag it uses is the APP's version --
+      # `v0.2.0`, `v0.2.1`. Those match the trigger above and ran this job, which then failed on
+      # `cargo publish --token` with an empty token, once per desktop release.
+      #
+      # So the tag has to prove it belongs to the crate before anything is published. Comparing it
+      # against `Cargo.toml` needs no secret, no variable to remember to set, and stays correct
+      # after the mirror moves out of this repository -- at which point this guard simply never
+      # fires again rather than needing to be found and removed.
+      - name: Does this tag name this crate's version?
+        id: owns
+        run: |
+          crate=$(grep -m1 '^version' Cargo.toml | cut -d'"' -f2)
+          tag="${GITHUB_REF_NAME#v}"
+          echo "crate=$crate tag=$tag"
+          if [ "$crate" = "$tag" ]; then
+            echo "ours=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "ours=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::Tag $GITHUB_REF_NAME is not this crate's version ($crate), so nothing is published. This is a mirrored desktop release."
+          fi
+      - if: steps.owns.outputs.ours == 'true'
+        uses: dtolnay/rust-toolchain@stable
       # Publish the Rust crate.
-      - run: cargo publish --token ${{ secrets.CARGO_REGISTRY_TOKEN }}
+      - if: steps.owns.outputs.ours == 'true'
+        run: cargo publish --token ${{ secrets.CARGO_REGISTRY_TOKEN }}
       # Generate + publish the npm package.
-      - uses: actions/setup-node@v4
+      - if: steps.owns.outputs.ours == 'true'
+        uses: actions/setup-node@v4
         with:
           node-version: 22
           registry-url: https://registry.npmjs.org
-      - run: cargo test --features ts
-      - run: npm publish --access public
+      - if: steps.owns.outputs.ours == 'true'
+        run: cargo test --features ts
+      - if: steps.owns.outputs.ours == 'true'
+        run: npm publish --access public
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}

@@ -447,17 +447,31 @@ pub struct EqPreset {
 }
 
 /// Default 10-band ISO graphic layout, all flat.
+/// The band centres the equalizer offers, in Hz: the standard ten-band ISO set.
+///
+/// Public because more than one thing needs it and they must not disagree. The desktop engine
+/// builds its filters from these frequencies and the web UI draws its sliders at them; a list that
+/// drifted would put a slider somewhere the filter does not sit, and the label would be a lie about
+/// what the handle does.
+pub const EQ_BAND_FREQS: [f32; 10] = [
+    31.0, 62.0, 125.0, 250.0, 500.0, 1000.0, 2000.0, 4000.0, 8000.0, 16000.0,
+];
+
+/// The Q every band uses unless it carries its own.
+///
+/// Wide enough that ten bands cover the spectrum without gaps between them, narrow enough that a
+/// band is a band rather than a tilt of everything.
+pub const EQ_DEFAULT_Q: f32 = 1.4;
+
 fn default_eq_bands() -> Vec<EqBand> {
-    [
-        31.0, 62.0, 125.0, 250.0, 500.0, 1000.0, 2000.0, 4000.0, 8000.0, 16000.0,
-    ]
-    .into_iter()
-    .map(|freq| EqBand {
-        freq,
-        gain: 0.0,
-        q: 1.4,
-    })
-    .collect()
+    EQ_BAND_FREQS
+        .into_iter()
+        .map(|freq| EqBand {
+            freq,
+            gain: 0.0,
+            q: EQ_DEFAULT_Q,
+        })
+        .collect()
 }
 
 fn yes() -> bool {
@@ -505,4 +519,32 @@ pub struct UserFlair {
     /// Two or more stops when the user chose a gradient; empty otherwise.
     #[serde(default)]
     pub gradient: Vec<String>,
+}
+
+#[cfg(test)]
+mod eq_defaults {
+    use super::*;
+
+    #[test]
+    fn the_default_bands_are_the_shared_list() {
+        // The constants exist so nothing restates them. A `default_eq_bands` that built its own
+        // list would make them decorative.
+        let bands = default_eq_bands();
+        assert_eq!(bands.len(), EQ_BAND_FREQS.len());
+        for (band, freq) in bands.iter().zip(EQ_BAND_FREQS) {
+            assert_eq!(band.freq, freq);
+            assert_eq!(band.q, EQ_DEFAULT_Q);
+            // Flat: a default equalizer must not change the sound of anything.
+            assert_eq!(band.gain, 0.0);
+        }
+    }
+
+    #[test]
+    fn the_bands_ascend_and_do_not_repeat() {
+        // A slider order the UI can render, and a set of filters that do not stack on one
+        // frequency. Both would be silent failures: overlapping bands just sound like one loud one.
+        for pair in EQ_BAND_FREQS.windows(2) {
+            assert!(pair[1] > pair[0], "{} then {}", pair[0], pair[1]);
+        }
+    }
 }

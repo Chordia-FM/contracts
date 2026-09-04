@@ -125,4 +125,9 @@ followed_artists_visibility: Audience,
 /**
  * Whether other users may follow this account without asking. Default on.
  */
-open_to_follows: boolean, };
+open_to_follows: boolean, 
+/**
+ * Whether a library's Discord bot may count what this user hears in a voice channel as
+ * their listening (through their linked Discord account). Default on.
+ */
+discord_listening: boolean, };

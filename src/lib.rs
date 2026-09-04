@@ -36,6 +36,7 @@ pub mod catalog;
 pub mod credits;
 pub mod desktop;
 pub mod directory;
+pub mod discord;
 pub mod discovery;
 pub mod explorer;
 pub mod identify;

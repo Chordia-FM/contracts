@@ -315,6 +315,10 @@ pub struct UserSettings {
     /// Whether other users may follow this account without asking. Default on.
     #[serde(default = "yes")]
     pub open_to_follows: bool,
+    /// Whether a library's Discord bot may count what this user hears in a voice channel as
+    /// their listening (through their linked Discord account). Default on.
+    #[serde(default = "yes")]
+    pub discord_listening: bool,
 }
 
 impl Default for UserSettings {
@@ -345,6 +349,7 @@ impl Default for UserSettings {
             playlists_visibility: default_audience_private(),
             followed_artists_visibility: default_audience_friends(),
             open_to_follows: true,
+            discord_listening: true,
         }
     }
 }

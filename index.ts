@@ -229,6 +229,7 @@ export * from "./bindings/ScrobblePrivacy";
 export * from "./bindings/SearchResults";
 export * from "./bindings/ServerEndpoint";
 export * from "./bindings/ServerMessage";
+export * from "./bindings/ServerOwner";
 export * from "./bindings/SessionInfo";
 export * from "./bindings/ShareNowStreaming";
 export * from "./bindings/ShareRequest";

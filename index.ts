@@ -166,6 +166,7 @@ export * from "./bindings/LibrarySummary";
 export * from "./bindings/LikedArtist";
 export * from "./bindings/LikedPoint";
 export * from "./bindings/LikedStats";
+export * from "./bindings/ListenersNowPlaying";
 export * from "./bindings/ListeningCharts";
 export * from "./bindings/ListeningEvent";
 export * from "./bindings/ListeningRecords";

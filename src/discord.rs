@@ -13,6 +13,7 @@
 use serde::{Deserialize, Serialize};
 
 use crate::scrobble::ListeningEvent;
+use crate::social::NowPlayingReport;
 use crate::Uuid;
 
 /// The most Discord ids one resolve call may carry.
@@ -67,6 +68,19 @@ pub struct AttributedEvent {
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 pub struct AttributedScrobbleBatch {
     pub events: Vec<AttributedEvent>,
+}
+
+/// `POST /v1/directory/now-playing`: what the bot is playing to these listeners right now, or,
+/// with no report, that it stopped. The Hub keeps the same live "listening now" entry a client
+/// posts for itself, so a listener's profile shows the track. Every user is re-checked against
+/// the trust rule.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export))]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+pub struct ListenersNowPlaying {
+    pub user_ids: Vec<Uuid>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub report: Option<NowPlayingReport>,
 }
 
 /// `POST /v1/catalog/resolve-tracks`: a library's own track ids, as it sent them in catalog sync.

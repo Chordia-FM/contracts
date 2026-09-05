@@ -37,6 +37,7 @@ pub mod credits;
 pub mod desktop;
 pub mod directory;
 pub mod discord;
+pub mod discord_layout;
 pub mod discovery;
 pub mod explorer;
 pub mod identify;

@@ -89,6 +89,7 @@ export * from "./bindings/ClockGrid";
 export * from "./bindings/ColumnKind";
 export * from "./bindings/Compared";
 export * from "./bindings/Compatibility";
+export * from "./bindings/ContainerAccent";
 export * from "./bindings/ControlButton";
 export * from "./bindings/CoverageSummary";
 export * from "./bindings/CreatePlaylistRequest";

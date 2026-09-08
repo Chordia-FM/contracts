@@ -4,4 +4,8 @@ import type { ViewLayout } from "./ViewLayout";
 /**
  * Every view's layout for one bot. A missing view means its default.
  */
-export type BotLayouts = { now_playing: ViewLayout, idle: ViewLayout, queued: ViewLayout, left: ViewLayout, queue: ViewLayout, history: ViewLayout, };
+export type BotLayouts = { 
+/**
+ * [`LAYOUT_VERSION`] when saved by this code; 0 for anything older.
+ */
+version: number, now_playing: ViewLayout, idle: ViewLayout, queued: ViewLayout, left: ViewLayout, queue: ViewLayout, history: ViewLayout, };

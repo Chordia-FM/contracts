@@ -5,4 +5,8 @@ import type { ViewLayout } from "./ViewLayout";
  * A server's own versions of some of the bot's messages. A view that is absent means "the
  * bot's". Written by the library owner from the dashboard, per server, in the same language.
  */
-export type LayoutOverrides = { now_playing?: ViewLayout | null, idle?: ViewLayout | null, queued?: ViewLayout | null, left?: ViewLayout | null, queue?: ViewLayout | null, history?: ViewLayout | null, };
+export type LayoutOverrides = { 
+/**
+ * [`LAYOUT_VERSION`] when saved by this code; 0 for anything older.
+ */
+version: number, now_playing?: ViewLayout | null, idle?: ViewLayout | null, queued?: ViewLayout | null, left?: ViewLayout | null, queue?: ViewLayout | null, history?: ViewLayout | null, };

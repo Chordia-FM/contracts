@@ -1,8 +1,10 @@
 //! How a library's Discord bot lays out its messages, per bot, written by the owner.
 //!
 //! A message is a list of Discord's own parts: text, a section with a picture or a button beside
-//! it, a gallery of pictures, a separator, a row of buttons, and, on the list messages, the line
-//! each entry is written with. Every piece of text is a **template**: Discord markdown with
+//! it, a gallery of pictures, a separator, a row of buttons, a container (the box with the accent
+//! bar, holding any of the others) and, on the list messages, the line each entry is written
+//! with. A container is a part like any other: a message may have none, one, or several, and each
+//! takes the bot's colour, a colour of its own, or no bar. Every piece of text is a **template**: Discord markdown with
 //! variables like `{track.title}`, `{channel}` (a real mention), `{player.progress_bar:12}` or
 //! `{emoji:listening}`, which the library fills in from the live state when it sends. The
 //! variables and what they mean are the library's to define (it is the one that renders them);
@@ -13,8 +15,12 @@
 //!
 //! The rules a layout must keep to live here too, as [`ViewLayout::validate`], so the dashboard
 //! and the library refuse the same things for the same reasons: Discord allows at most five
-//! buttons per row and forty components per message, a control must not appear twice in one
-//! message (its id would clash), and a gallery holds at most ten pictures.
+//! buttons per row and forty components per message, a container cannot hold another, a control
+//! must not appear twice in one message (its id would clash), and a gallery holds at most ten
+//! pictures.
+//!
+//! [`LAYOUT_VERSION`] stamps what is saved, so the library can bring an older layout up to date
+//! (renamed variables, the container that used to be implied) exactly once.
 
 use serde::{Deserialize, Serialize};
 
@@ -140,6 +146,20 @@ pub enum Accessory {
     Button { button: ButtonSpec },
 }
 
+/// The bar down a container's side.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(tag = "kind", rename_all = "snake_case")]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export))]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+pub enum ContainerAccent {
+    /// The bot's colour, and what the message means: grey while paused or idle, red for an error.
+    Bot,
+    /// One colour whatever happens, `#rrggbb`.
+    Fixed { hex: String },
+    /// No bar.
+    None,
+}
+
 /// One part of a message.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(tag = "kind", rename_all = "snake_case")]
@@ -169,6 +189,11 @@ pub enum LayoutBlock {
         empty: String,
         page_size: u8,
     },
+    /// The box with a bar down its side, holding any of the other parts.
+    Container {
+        accent: ContainerAccent,
+        blocks: Vec<LayoutBlock>,
+    },
 }
 
 impl LayoutBlock {
@@ -181,9 +206,13 @@ impl LayoutBlock {
             LayoutBlock::Separator { .. } => "separator",
             LayoutBlock::Row { .. } => "row",
             LayoutBlock::List { .. } => "list",
+            LayoutBlock::Container { .. } => "container",
         }
     }
 }
+
+/// What saved layouts are stamped with; older ones are brought up to date by the library.
+pub const LAYOUT_VERSION: u32 = 3;
 
 /// The blocks of one view, in order.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -198,6 +227,9 @@ pub struct ViewLayout {
 #[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export))]
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 pub struct BotLayouts {
+    /// [`LAYOUT_VERSION`] when saved by this code; 0 for anything older.
+    #[serde(default)]
+    pub version: u32,
     #[serde(default = "default_now_playing")]
     pub now_playing: ViewLayout,
     #[serde(default = "default_idle")]
@@ -215,6 +247,7 @@ pub struct BotLayouts {
 impl Default for BotLayouts {
     fn default() -> Self {
         Self {
+            version: LAYOUT_VERSION,
             now_playing: default_now_playing(),
             idle: default_idle(),
             queued: default_queued(),
@@ -289,112 +322,113 @@ fn controls(buttons: &[ControlButton]) -> LayoutBlock {
     }
 }
 
+/// The shipped design puts everything in one container in the bot's colour.
+fn boxed(blocks: Vec<LayoutBlock>) -> ViewLayout {
+    ViewLayout {
+        blocks: vec![LayoutBlock::Container {
+            accent: ContainerAccent::Bot,
+            blocks,
+        }],
+    }
+}
+
 /// The design the bot ships with: the controller as it has always looked, in the template
 /// language, so it is also a worked example of the variables.
 pub fn default_now_playing() -> ViewLayout {
-    ViewLayout {
-        blocks: vec![
-            text("### {icon} {heading}\n-# in {emoji:listening} {channel}"),
-            separator(true, SeparatorSpacing::Small),
-            LayoutBlock::Section {
-                content: "{track}\n-# {file}".to_string(),
-                accessory: Accessory::Image {
-                    source: ImageSource::Cover,
-                },
+    boxed(vec![
+        text("### {icon} {heading}\n-# in {emoji:listening} {channel}"),
+        separator(true, SeparatorSpacing::Small),
+        LayoutBlock::Section {
+            content: "{track}\n-# {file}".to_string(),
+            accessory: Accessory::Image {
+                source: ImageSource::Cover,
             },
-            separator(false, SeparatorSpacing::Small),
-            text("{player.progress_bar:12} {player.position} / {track.duration}\n-# {player.meta}"),
-            separator(false, SeparatorSpacing::Large),
-            controls(&[
-                ControlButton::Previous,
-                ControlButton::PlayPause,
-                ControlButton::Skip,
-                ControlButton::Stop,
-                ControlButton::Shuffle,
-            ]),
-            controls(&[
-                ControlButton::Loop,
-                ControlButton::VolumeDown,
-                ControlButton::VolumeUp,
-                ControlButton::Queue,
-                ControlButton::Autoplay,
-            ]),
-        ],
-    }
+        },
+        separator(false, SeparatorSpacing::Small),
+        text("{player.progress_bar:12} {player.position} / {track.duration}\n-# {player.meta}"),
+        separator(false, SeparatorSpacing::Large),
+        controls(&[
+            ControlButton::Previous,
+            ControlButton::PlayPause,
+            ControlButton::Skip,
+            ControlButton::Stop,
+            ControlButton::Shuffle,
+        ]),
+        controls(&[
+            ControlButton::Loop,
+            ControlButton::VolumeDown,
+            ControlButton::VolumeUp,
+            ControlButton::Queue,
+            ControlButton::Autoplay,
+        ]),
+    ])
 }
 
 pub fn default_idle() -> ViewLayout {
-    ViewLayout {
-        blocks: vec![
-            text("### {icon} {heading}\n-# in {emoji:listening} {channel}"),
-            separator(true, SeparatorSpacing::Small),
-            text("-# The queue is empty. `/play` something."),
-        ],
-    }
+    boxed(vec![
+        text("### {icon} {heading}\n-# in {emoji:listening} {channel}"),
+        separator(true, SeparatorSpacing::Small),
+        text("-# The queue is empty. `/play` something."),
+    ])
 }
 
 pub fn default_queued() -> ViewLayout {
-    ViewLayout {
-        blocks: vec![
-            text("### {icon} {heading}"),
-            separator(true, SeparatorSpacing::Small),
-            LayoutBlock::Section {
-                content: "{added}\n-# {added.meta}".to_string(),
-                accessory: Accessory::Image {
-                    source: ImageSource::Cover,
-                },
+    boxed(vec![
+        text("### {icon} {heading}"),
+        separator(true, SeparatorSpacing::Small),
+        LayoutBlock::Section {
+            content: "{added}\n-# {added.meta}".to_string(),
+            accessory: Accessory::Image {
+                source: ImageSource::Cover,
             },
-        ],
-    }
+        },
+    ])
 }
 
 pub fn default_left() -> ViewLayout {
-    ViewLayout {
-        blocks: vec![
-            text("### {icon} {heading}\n-# {bot}"),
-            separator(true, SeparatorSpacing::Small),
-            text("-# {left.reason} · `/play` to bring me back"),
-        ],
-    }
+    boxed(vec![
+        text("### {icon} {heading}\n-# {bot}"),
+        separator(true, SeparatorSpacing::Small),
+        text("-# {left.reason} · `/play` to bring me back"),
+    ])
 }
 
 pub fn default_queue() -> ViewLayout {
-    ViewLayout {
-        blocks: vec![
-            text("### {icon} {heading}\n-# {queue.tracks} · {queue.duration} · {bot}"),
-            separator(true, SeparatorSpacing::Small),
-            text("{player.line}"),
-            separator(false, SeparatorSpacing::Small),
-            LayoutBlock::List {
-                item: "`{index}.` {track.line} · {track.duration} · {requester}".to_string(),
-                empty: "-# The queue is empty.".to_string(),
-                page_size: 10,
-            },
-        ],
-    }
+    boxed(vec![
+        text("### {icon} {heading}\n-# {queue.tracks} · {queue.duration} · {bot}"),
+        separator(true, SeparatorSpacing::Small),
+        text("{player.line}"),
+        separator(false, SeparatorSpacing::Small),
+        LayoutBlock::List {
+            item: "`{index}.` {track.line} · {track.duration} · {requester}".to_string(),
+            empty: "-# The queue is empty.".to_string(),
+            page_size: 10,
+        },
+    ])
 }
 
 pub fn default_history() -> ViewLayout {
-    ViewLayout {
-        blocks: vec![
-            text("### {icon} {heading}\n-# {bot}"),
-            separator(true, SeparatorSpacing::Small),
-            LayoutBlock::List {
-                item: "{track.line}\n-# {play.at} · {play.length} · {requester} · {play.counted}"
-                    .to_string(),
-                empty: "-# Nothing has played yet.".to_string(),
-                page_size: 10,
-            },
-        ],
-    }
+    boxed(vec![
+        text("### {icon} {heading}\n-# {bot}"),
+        separator(true, SeparatorSpacing::Small),
+        LayoutBlock::List {
+            item: "{track.line}\n-# {play.at} · {play.length} · {requester} · {play.counted}"
+                .to_string(),
+            empty: "-# Nothing has played yet.".to_string(),
+            page_size: 10,
+        },
+    ])
 }
 
 /// A server's own versions of some of the bot's messages. A view that is absent means "the
 /// bot's". Written by the library owner from the dashboard, per server, in the same language.
-#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export))]
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 pub struct LayoutOverrides {
+    /// [`LAYOUT_VERSION`] when saved by this code; 0 for anything older.
+    #[serde(default)]
+    pub version: u32,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub now_playing: Option<ViewLayout>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -407,6 +441,20 @@ pub struct LayoutOverrides {
     pub queue: Option<ViewLayout>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub history: Option<ViewLayout>,
+}
+
+impl Default for LayoutOverrides {
+    fn default() -> Self {
+        Self {
+            version: LAYOUT_VERSION,
+            now_playing: None,
+            idle: None,
+            queued: None,
+            left: None,
+            queue: None,
+            history: None,
+        }
+    }
 }
 
 impl LayoutOverrides {
@@ -511,20 +559,81 @@ fn check_image(source: &ImageSource) -> Result<(), String> {
     }
 }
 
+fn is_hex6(s: &str) -> bool {
+    let h = s.strip_prefix('#').unwrap_or(s);
+    h.len() == 6 && h.chars().all(|c| c.is_ascii_hexdigit())
+}
+
+/// What one pass over the blocks keeps count of.
+#[derive(Default)]
+struct Tally {
+    blocks: usize,
+    rows: usize,
+    lists: usize,
+    seen: Vec<ControlButton>,
+}
+
 impl ViewLayout {
     /// The rules, in the order a person would want to hear them.
     pub fn validate(&self, view: LayoutView) -> Result<(), String> {
         if self.blocks.is_empty() {
             return Err("a message needs at least one block".into());
         }
-        if self.blocks.len() > MAX_BLOCKS {
+        let mut tally = Tally::default();
+        check_blocks(view, &self.blocks, false, &mut tally)?;
+        if view.is_list() && tally.lists == 0 {
+            return Err(format!(
+                "the {} message needs a list block",
+                view_name(view)
+            ));
+        }
+        Ok(())
+    }
+
+    /// Every block, containers opened up, in order.
+    pub fn flat(&self) -> Vec<&LayoutBlock> {
+        let mut out = Vec::new();
+        for b in &self.blocks {
+            out.push(b);
+            if let LayoutBlock::Container { blocks, .. } = b {
+                out.extend(blocks.iter());
+            }
+        }
+        out
+    }
+}
+
+fn check_blocks(
+    view: LayoutView,
+    blocks: &[LayoutBlock],
+    inside: bool,
+    tally: &mut Tally,
+) -> Result<(), String> {
+    for block in blocks {
+        tally.blocks += 1;
+        if tally.blocks > MAX_BLOCKS {
             return Err(format!("at most {MAX_BLOCKS} blocks"));
         }
-        let mut rows = 0;
-        let mut lists = 0;
-        let mut seen: Vec<ControlButton> = Vec::new();
-        for block in &self.blocks {
+        let rows = &mut tally.rows;
+        let lists = &mut tally.lists;
+        let seen = &mut tally.seen;
+        {
             match block {
+                LayoutBlock::Container { accent, blocks } => {
+                    if inside {
+                        return Err("a container cannot hold another container".into());
+                    }
+                    if blocks.is_empty() {
+                        return Err("a container needs something in it".into());
+                    }
+                    if let ContainerAccent::Fixed { hex } = accent {
+                        if !is_hex6(hex) {
+                            return Err("a container's colour is #rrggbb".into());
+                        }
+                    }
+                    check_blocks(view, blocks, true, tally)?;
+                    continue;
+                }
                 LayoutBlock::Text { content } => {
                     check_text("a text block", content, MAX_TEXT_CHARS)?
                 }
@@ -533,8 +642,8 @@ impl ViewLayout {
                     match accessory {
                         Accessory::Image { source } => check_image(source)?,
                         Accessory::Button { button } => {
-                            rows += 1;
-                            check_button(view, button, &mut seen)?;
+                            *rows += 1;
+                            check_button(view, button, seen)?;
                         }
                     }
                 }
@@ -548,8 +657,8 @@ impl ViewLayout {
                 }
                 LayoutBlock::Separator { .. } => {}
                 LayoutBlock::Row { buttons } => {
-                    rows += 1;
-                    if rows > MAX_ROWS {
+                    *rows += 1;
+                    if *rows > MAX_ROWS {
                         return Err(format!("at most {MAX_ROWS} rows of buttons"));
                     }
                     if buttons.is_empty() {
@@ -559,7 +668,7 @@ impl ViewLayout {
                         return Err(format!("at most {MAX_PER_ROW} buttons in a row"));
                     }
                     for b in buttons {
-                        check_button(view, b, &mut seen)?;
+                        check_button(view, b, seen)?;
                     }
                 }
                 LayoutBlock::List {
@@ -573,8 +682,8 @@ impl ViewLayout {
                             view_name(view)
                         ));
                     }
-                    lists += 1;
-                    if lists > 1 {
+                    *lists += 1;
+                    if *lists > 1 {
                         return Err("one list per message".into());
                     }
                     check_text("the list's line", item, MAX_ITEM_CHARS)?;
@@ -585,14 +694,8 @@ impl ViewLayout {
                 }
             }
         }
-        if view.is_list() && lists == 0 {
-            return Err(format!(
-                "the {} message needs a list block",
-                view_name(view)
-            ));
-        }
-        Ok(())
     }
+    Ok(())
 }
 
 #[cfg(test)]
@@ -606,18 +709,28 @@ mod tests {
         let json = serde_json::to_string(&layouts).unwrap();
         let back: BotLayouts = serde_json::from_str(&json).unwrap();
         assert_eq!(back, layouts);
-        // A missing view falls back to its default.
+        // A missing view falls back to its default; an old save has no version.
         let partial: BotLayouts =
             serde_json::from_str(r#"{"idle":{"blocks":[{"kind":"text","content":"hi"}]}}"#)
                 .unwrap();
         assert_eq!(partial.now_playing, default_now_playing());
         assert_eq!(partial.idle.blocks.len(), 1);
+        assert_eq!(partial.version, 0);
+        assert_eq!(BotLayouts::default().version, LAYOUT_VERSION);
+        assert_eq!(LayoutOverrides::default().version, LAYOUT_VERSION);
+    }
+
+    fn inner(v: &mut ViewLayout) -> &mut Vec<LayoutBlock> {
+        match &mut v.blocks[0] {
+            LayoutBlock::Container { blocks, .. } => blocks,
+            _ => panic!("the default is boxed"),
+        }
     }
 
     #[test]
     fn the_rules_refuse_what_discord_would() {
         let mut v = default_now_playing();
-        if let LayoutBlock::Row { buttons } = &mut v.blocks[6] {
+        if let LayoutBlock::Row { buttons } = &mut inner(&mut v)[6] {
             buttons.push(ButtonSpec::Control {
                 control: ControlButton::Lyrics,
             });
@@ -628,7 +741,7 @@ mod tests {
             .contains("at most 5"));
 
         let mut v = default_now_playing();
-        if let LayoutBlock::Row { buttons } = &mut v.blocks[7] {
+        if let LayoutBlock::Row { buttons } = &mut inner(&mut v)[7] {
             buttons[0] = ButtonSpec::Control {
                 control: ControlButton::Skip,
             };
@@ -637,6 +750,61 @@ mod tests {
             .validate(LayoutView::NowPlaying)
             .unwrap_err()
             .contains("twice"));
+
+        // A container is a block like the others: none, several, but never one in another, and
+        // never empty; a fixed colour is a hex triple.
+        let plain = ViewLayout {
+            blocks: vec![text("no box"), separator(true, SeparatorSpacing::Small)],
+        };
+        plain.validate(LayoutView::Idle).unwrap();
+        let nested = ViewLayout {
+            blocks: vec![LayoutBlock::Container {
+                accent: ContainerAccent::None,
+                blocks: vec![LayoutBlock::Container {
+                    accent: ContainerAccent::Bot,
+                    blocks: vec![text("x")],
+                }],
+            }],
+        };
+        assert!(nested
+            .validate(LayoutView::Idle)
+            .unwrap_err()
+            .contains("another container"));
+        let empty = ViewLayout {
+            blocks: vec![LayoutBlock::Container {
+                accent: ContainerAccent::Bot,
+                blocks: vec![],
+            }],
+        };
+        assert!(empty
+            .validate(LayoutView::Idle)
+            .unwrap_err()
+            .contains("needs something"));
+        let bad_hex = ViewLayout {
+            blocks: vec![LayoutBlock::Container {
+                accent: ContainerAccent::Fixed { hex: "pink".into() },
+                blocks: vec![text("x")],
+            }],
+        };
+        assert!(bad_hex
+            .validate(LayoutView::Idle)
+            .unwrap_err()
+            .contains("#rrggbb"));
+        // A list inside a container still counts for the list message.
+        let boxed_list = ViewLayout {
+            blocks: vec![LayoutBlock::Container {
+                accent: ContainerAccent::Fixed {
+                    hex: "#f2258c".into(),
+                },
+                blocks: vec![LayoutBlock::List {
+                    item: "{track.line}".into(),
+                    empty: "-# nothing".into(),
+                    page_size: 5,
+                }],
+            }],
+        };
+        boxed_list.validate(LayoutView::Queue).unwrap();
+        assert_eq!(boxed_list.flat().len(), 2);
 
         let v = ViewLayout {
             blocks: vec![controls(&[ControlButton::PlayPause])],

@@ -3,7 +3,7 @@
 //! A message is a list of Discord's own parts: text, a section with a picture or a button beside
 //! it, a gallery of pictures, a separator, a row of buttons, and, on the list messages, the line
 //! each entry is written with. Every piece of text is a **template**: Discord markdown with
-//! variables like `{track}`, `{channel}` (a real mention), `{progress_bar:12}` or
+//! variables like `{track.title}`, `{channel}` (a real mention), `{player.progress_bar:12}` or
 //! `{emoji:listening}`, which the library fills in from the live state when it sends. The
 //! variables and what they mean are the library's to define (it is the one that renders them);
 //! the dashboard asks it for the list.
@@ -290,20 +290,20 @@ fn controls(buttons: &[ControlButton]) -> LayoutBlock {
 }
 
 /// The design the bot ships with: the controller as it has always looked, in the template
-/// language, so it is also the worked example of every variable.
+/// language, so it is also a worked example of the variables.
 pub fn default_now_playing() -> ViewLayout {
     ViewLayout {
         blocks: vec![
             text("### {icon} {heading}\n-# in {emoji:listening} {channel}"),
             separator(true, SeparatorSpacing::Small),
             LayoutBlock::Section {
-                content: "{track}\n-# {badges}".to_string(),
+                content: "{track}\n-# {file}".to_string(),
                 accessory: Accessory::Image {
                     source: ImageSource::Cover,
                 },
             },
             separator(false, SeparatorSpacing::Small),
-            text("{progress_bar:12} {position} / {duration}\n-# {meta}"),
+            text("{player.progress_bar:12} {player.position} / {track.duration}\n-# {player.meta}"),
             separator(false, SeparatorSpacing::Large),
             controls(&[
                 ControlButton::Previous,
@@ -339,7 +339,7 @@ pub fn default_queued() -> ViewLayout {
             text("### {icon} {heading}"),
             separator(true, SeparatorSpacing::Small),
             LayoutBlock::Section {
-                content: "{added}\n-# {added_meta}".to_string(),
+                content: "{added}\n-# {added.meta}".to_string(),
                 accessory: Accessory::Image {
                     source: ImageSource::Cover,
                 },
@@ -353,7 +353,7 @@ pub fn default_left() -> ViewLayout {
         blocks: vec![
             text("### {icon} {heading}\n-# {bot}"),
             separator(true, SeparatorSpacing::Small),
-            text("-# {reason} · `/play` to bring me back"),
+            text("-# {left.reason} · `/play` to bring me back"),
         ],
     }
 }
@@ -361,12 +361,12 @@ pub fn default_left() -> ViewLayout {
 pub fn default_queue() -> ViewLayout {
     ViewLayout {
         blocks: vec![
-            text("### {icon} {heading}\n-# {queue_tracks} · {queue_duration} · {bot}"),
+            text("### {icon} {heading}\n-# {queue.tracks} · {queue.duration} · {bot}"),
             separator(true, SeparatorSpacing::Small),
-            text("{now_playing_line}"),
+            text("{player.line}"),
             separator(false, SeparatorSpacing::Small),
             LayoutBlock::List {
-                item: "`{index}.` {track_line} · {duration} · {requested_by}".to_string(),
+                item: "`{index}.` {track.line} · {track.duration} · {requester}".to_string(),
                 empty: "-# The queue is empty.".to_string(),
                 page_size: 10,
             },
@@ -380,7 +380,7 @@ pub fn default_history() -> ViewLayout {
             text("### {icon} {heading}\n-# {bot}"),
             separator(true, SeparatorSpacing::Small),
             LayoutBlock::List {
-                item: "{track_line}\n-# {played_at} · {played_for} · {requested_by} · {counted}"
+                item: "{track.line}\n-# {play.at} · {play.length} · {requester} · {play.counted}"
                     .to_string(),
                 empty: "-# Nothing has played yet.".to_string(),
                 page_size: 10,

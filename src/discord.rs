@@ -221,3 +221,14 @@ pub struct PlaylistTracksResponse {
     /// Tracks on the playlist that none of the server's libraries hold.
     pub missing: u32,
 }
+
+/// `POST /v1/lyrics:bot`: lyrics for one of a server's own tracks, for its Discord bot, by the
+/// library's own track id. Answered with the same [`Lyrics`](crate::lyrics::Lyrics) a person gets.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export))]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+pub struct BotLyricsRequest {
+    /// The Hub's id for the library (the one catalog sync uses).
+    pub library_id: Uuid,
+    pub track_ref: String,
+}

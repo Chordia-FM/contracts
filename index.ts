@@ -67,6 +67,7 @@ export * from "./bindings/BillingInterval";
 export * from "./bindings/BillingMe";
 export * from "./bindings/BillingStatus";
 export * from "./bindings/BotLayouts";
+export * from "./bindings/BotLyricsRequest";
 export * from "./bindings/BrowseAlbum";
 export * from "./bindings/BrowseArtist";
 export * from "./bindings/BrowseTrack";

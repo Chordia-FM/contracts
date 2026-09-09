@@ -3,4 +3,4 @@
 /**
  * A control on the now-playing message. Each may appear once.
  */
-export type ControlButton = "previous" | "play_pause" | "skip" | "stop" | "shuffle" | "loop" | "volume_down" | "volume_up" | "queue" | "autoplay" | "lyrics";
+export type ControlButton = "previous" | "play_pause" | "skip" | "stop" | "shuffle" | "loop" | "volume_down" | "volume_up" | "mute" | "seek_back" | "seek_forward" | "queue" | "clear" | "autoplay" | "lyrics" | "history" | "leave";

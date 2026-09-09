@@ -83,13 +83,19 @@ pub enum ControlButton {
     Loop,
     VolumeDown,
     VolumeUp,
+    Mute,
+    SeekBack,
+    SeekForward,
     Queue,
+    Clear,
     Autoplay,
     Lyrics,
+    History,
+    Leave,
 }
 
 impl ControlButton {
-    pub const ALL: [ControlButton; 11] = [
+    pub const ALL: [ControlButton; 17] = [
         ControlButton::Previous,
         ControlButton::PlayPause,
         ControlButton::Skip,
@@ -98,9 +104,15 @@ impl ControlButton {
         ControlButton::Loop,
         ControlButton::VolumeDown,
         ControlButton::VolumeUp,
+        ControlButton::Mute,
+        ControlButton::SeekBack,
+        ControlButton::SeekForward,
         ControlButton::Queue,
+        ControlButton::Clear,
         ControlButton::Autoplay,
         ControlButton::Lyrics,
+        ControlButton::History,
+        ControlButton::Leave,
     ];
 }
 
@@ -114,8 +126,12 @@ pub enum ImageSource {
     Cover,
     /// The artist's picture from the Hub, when there is one.
     Artist,
+    /// The artist's wide banner from the Hub, when there is one.
+    ArtistBanner,
     /// The bot's own avatar.
     BotAvatar,
+    /// The server's icon.
+    ServerIcon,
     /// Any address, a template like the texts.
     Url { url: String },
 }
@@ -168,9 +184,11 @@ pub enum ContainerAccent {
 pub enum LayoutBlock {
     /// Text: Discord markdown with variables.
     Text { content: String },
-    /// Text with a picture or a button beside it.
+    /// One to three texts with a picture or a button beside them.
     Section {
-        content: String,
+        /// Older saves wrote one `content`; it reads as a single text.
+        #[serde(alias = "content", deserialize_with = "one_or_many")]
+        texts: Vec<String>,
         accessory: Accessory,
     },
     /// One to ten pictures, large.
@@ -194,6 +212,20 @@ pub enum LayoutBlock {
         accent: ContainerAccent,
         blocks: Vec<LayoutBlock>,
     },
+}
+
+/// A string where a list is expected reads as a list of one.
+fn one_or_many<'de, D: serde::Deserializer<'de>>(de: D) -> Result<Vec<String>, D::Error> {
+    #[derive(Deserialize)]
+    #[serde(untagged)]
+    enum OneOrMany {
+        One(String),
+        Many(Vec<String>),
+    }
+    Ok(match OneOrMany::deserialize(de)? {
+        OneOrMany::One(s) => vec![s],
+        OneOrMany::Many(v) => v,
+    })
 }
 
 impl LayoutBlock {
@@ -336,37 +368,37 @@ fn boxed(blocks: Vec<LayoutBlock>) -> ViewLayout {
 /// language, so it is also a worked example of the variables.
 pub fn default_now_playing() -> ViewLayout {
     boxed(vec![
-        text("### {icon} {heading}\n-# in {emoji:listening} {channel}"),
+        text("### {icon} {heading} in {channel}"),
         separator(true, SeparatorSpacing::Small),
         LayoutBlock::Section {
-            content: "{track}\n-# {file}".to_string(),
+            texts: vec![
+                "{track}\n-# Requested by {requester}\n{player.progress_bar:12} {player.position} / {track.duration}\n-# {queue.count} tracks in queue ({queue.duration}) · Volume: {player.volume}%"
+                    .to_string(),
+            ],
             accessory: Accessory::Image {
                 source: ImageSource::Cover,
             },
         },
-        separator(false, SeparatorSpacing::Small),
-        text("{player.progress_bar:12} {player.position} / {track.duration}\n-# {player.meta}"),
         separator(false, SeparatorSpacing::Large),
         controls(&[
+            ControlButton::Loop,
             ControlButton::Previous,
             ControlButton::PlayPause,
             ControlButton::Skip,
-            ControlButton::Stop,
             ControlButton::Shuffle,
         ]),
         controls(&[
-            ControlButton::Loop,
-            ControlButton::VolumeDown,
-            ControlButton::VolumeUp,
             ControlButton::Queue,
             ControlButton::Autoplay,
+            ControlButton::Lyrics,
+            ControlButton::Leave,
         ]),
     ])
 }
 
 pub fn default_idle() -> ViewLayout {
     boxed(vec![
-        text("### {icon} {heading}\n-# in {emoji:listening} {channel}"),
+        text("### {icon} {heading} in {channel}"),
         separator(true, SeparatorSpacing::Small),
         text("-# The queue is empty. `/play` something."),
     ])
@@ -377,7 +409,7 @@ pub fn default_queued() -> ViewLayout {
         text("### {icon} {heading}"),
         separator(true, SeparatorSpacing::Small),
         LayoutBlock::Section {
-            content: "{added}\n-# {added.meta}".to_string(),
+            texts: vec!["{added}\n-# {added.meta}".to_string()],
             accessory: Accessory::Image {
                 source: ImageSource::Cover,
             },
@@ -504,6 +536,8 @@ pub const MAX_BLOCKS: usize = 20;
 pub const MAX_ROWS: usize = 5;
 pub const MAX_PER_ROW: usize = 5;
 pub const MAX_GALLERY: usize = 10;
+/// Discord's cap on the texts beside a section's accessory.
+pub const MAX_SECTION_TEXTS: usize = 3;
 pub const MAX_TEXT_CHARS: usize = 2000;
 pub const MAX_ITEM_CHARS: usize = 400;
 pub const MAX_LABEL_CHARS: usize = 80;
@@ -637,8 +671,13 @@ fn check_blocks(
                 LayoutBlock::Text { content } => {
                     check_text("a text block", content, MAX_TEXT_CHARS)?
                 }
-                LayoutBlock::Section { content, accessory } => {
-                    check_text("a section", content, MAX_TEXT_CHARS)?;
+                LayoutBlock::Section { texts, accessory } => {
+                    if texts.is_empty() || texts.len() > MAX_SECTION_TEXTS {
+                        return Err(format!("a section holds one to {MAX_SECTION_TEXTS} texts"));
+                    }
+                    for t in texts {
+                        check_text("a section's text", t, MAX_TEXT_CHARS)?;
+                    }
                     match accessory {
                         Accessory::Image { source } => check_image(source)?,
                         Accessory::Button { button } => {
@@ -730,9 +769,9 @@ mod tests {
     #[test]
     fn the_rules_refuse_what_discord_would() {
         let mut v = default_now_playing();
-        if let LayoutBlock::Row { buttons } = &mut inner(&mut v)[6] {
+        if let LayoutBlock::Row { buttons } = &mut inner(&mut v)[4] {
             buttons.push(ButtonSpec::Control {
-                control: ControlButton::Lyrics,
+                control: ControlButton::Stop,
             });
         }
         assert!(v
@@ -741,7 +780,7 @@ mod tests {
             .contains("at most 5"));
 
         let mut v = default_now_playing();
-        if let LayoutBlock::Row { buttons } = &mut inner(&mut v)[7] {
+        if let LayoutBlock::Row { buttons } = &mut inner(&mut v)[5] {
             buttons[0] = ButtonSpec::Control {
                 control: ControlButton::Skip,
             };
@@ -750,6 +789,27 @@ mod tests {
             .validate(LayoutView::NowPlaying)
             .unwrap_err()
             .contains("twice"));
+
+        // A section holds one to three texts, and an older save's single `content` still reads.
+        let four = ViewLayout {
+            blocks: vec![LayoutBlock::Section {
+                texts: vec!["a".into(), "b".into(), "c".into(), "d".into()],
+                accessory: Accessory::Image {
+                    source: ImageSource::ArtistBanner,
+                },
+            }],
+        };
+        assert!(four
+            .validate(LayoutView::Idle)
+            .unwrap_err()
+            .contains("one to 3"));
+        let old: LayoutBlock = serde_json::from_str(
+            r#"{"kind":"section","content":"hi","accessory":{"kind":"image","source":{"kind":"cover"}}}"#,
+        )
+        .unwrap();
+        assert!(matches!(&old, LayoutBlock::Section { texts, .. } if texts == &["hi".to_string()]));
+        let json = serde_json::to_string(&old).unwrap();
+        assert!(json.contains(r#""texts":["hi"]"#) && !json.contains("content"));
 
         // A container is a block like the others: none, several, but never one in another, and
         // never empty; a fixed colour is a hex triple.

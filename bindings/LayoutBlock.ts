@@ -8,4 +8,8 @@ import type { SeparatorSpacing } from "./SeparatorSpacing";
 /**
  * One part of a message.
  */
-export type LayoutBlock = { "kind": "text", content: string, } | { "kind": "section", content: string, accessory: Accessory, } | { "kind": "gallery", images: Array<ImageSource>, } | { "kind": "separator", divider: boolean, spacing: SeparatorSpacing, } | { "kind": "row", buttons: Array<ButtonSpec>, } | { "kind": "list", item: string, empty: string, page_size: number, } | { "kind": "container", accent: ContainerAccent, blocks: Array<LayoutBlock>, };
+export type LayoutBlock = { "kind": "text", content: string, } | { "kind": "section", 
+/**
+ * Older saves wrote one `content`; it reads as a single text.
+ */
+texts: Array<string>, accessory: Accessory, } | { "kind": "gallery", images: Array<ImageSource>, } | { "kind": "separator", divider: boolean, spacing: SeparatorSpacing, } | { "kind": "row", buttons: Array<ButtonSpec>, } | { "kind": "list", item: string, empty: string, page_size: number, } | { "kind": "container", accent: ContainerAccent, blocks: Array<LayoutBlock>, };

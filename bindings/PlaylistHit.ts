@@ -5,7 +5,7 @@
  */
 export type PlaylistHit = { id: string, name: string, owner_handle: string, 
 /**
- * The server owner's own; otherwise it is someone's public playlist.
+ * The asker's own; otherwise it is someone's public playlist.
  */
 owned: boolean, 
 /**

@@ -148,13 +148,17 @@ pub struct ArtistArtResponse {
     pub artists: Vec<ArtistArt>,
 }
 
-/// `POST /v1/catalog/playlists:search`: playlists a server's bot may queue, by name: the server
-/// owner's own (whatever their visibility) and anyone's public ones.
+/// `POST /v1/catalog/playlists:search`: playlists a server's bot may queue, by name: anyone's
+/// public ones, and the asker's own (whatever their visibility) when the Hub knows who asked and
+/// the server may act for them, by the same trust rule as attributing a play.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export))]
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 pub struct PlaylistSearchRequest {
     pub query: String,
+    /// The Discord account that asked, so their own playlists count.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub discord_id: Option<String>,
     /// At most this many, the owner's first; capped by the Hub.
     #[serde(default = "default_playlist_limit")]
     pub limit: u32,
@@ -172,7 +176,7 @@ pub struct PlaylistHit {
     pub id: Uuid,
     pub name: String,
     pub owner_handle: String,
-    /// The server owner's own; otherwise it is someone's public playlist.
+    /// The asker's own; otherwise it is someone's public playlist.
     pub owned: bool,
     /// Every track on it, whether or not this server holds them.
     pub track_count: u32,
@@ -193,6 +197,9 @@ pub struct PlaylistSearchResponse {
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 pub struct PlaylistTracksRequest {
     pub playlist_id: Uuid,
+    /// The Discord account that asked, so their own playlists may be read.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub discord_id: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

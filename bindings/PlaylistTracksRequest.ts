@@ -4,4 +4,8 @@
  * `POST /v1/catalog/playlists:tracks`: a playlist's tracks as the refs of this server's own
  * libraries, in playlist order. Tracks the server does not hold are counted, not returned.
  */
-export type PlaylistTracksRequest = { playlist_id: string, };
+export type PlaylistTracksRequest = { playlist_id: string, 
+/**
+ * The Discord account that asked, so their own playlists may be read.
+ */
+discord_id?: string | null, };

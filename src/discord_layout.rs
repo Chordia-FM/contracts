@@ -125,10 +125,12 @@ pub enum ControlButton {
     Lyrics,
     History,
     Leave,
+    /// Opens the equalizer panel.
+    Equalizer,
 }
 
 impl ControlButton {
-    pub const ALL: [ControlButton; 17] = [
+    pub const ALL: [ControlButton; 18] = [
         ControlButton::Previous,
         ControlButton::PlayPause,
         ControlButton::Skip,
@@ -146,6 +148,7 @@ impl ControlButton {
         ControlButton::Lyrics,
         ControlButton::History,
         ControlButton::Leave,
+        ControlButton::Equalizer,
     ];
 }
 

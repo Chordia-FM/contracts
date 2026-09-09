@@ -62,10 +62,12 @@ pub enum LayoutView {
     VotePassed,
     /// `/eq` and the equalizer button: the panel.
     Equalizer,
+    /// Posted when the bot leaves after playing: what the session was.
+    Session,
 }
 
 impl LayoutView {
-    pub const ALL: [LayoutView; 16] = [
+    pub const ALL: [LayoutView; 17] = [
         LayoutView::NowPlaying,
         LayoutView::Idle,
         LayoutView::Queued,
@@ -82,16 +84,24 @@ impl LayoutView {
         LayoutView::Vote,
         LayoutView::VotePassed,
         LayoutView::Equalizer,
+        LayoutView::Session,
     ];
 
     /// Views that show a list of entries and therefore need a [`LayoutBlock::List`].
     pub fn is_list(self) -> bool {
-        matches!(self, LayoutView::Queue | LayoutView::History)
+        matches!(
+            self,
+            LayoutView::Queue | LayoutView::History | LayoutView::Session
+        )
     }
 
-    /// Views that turn pages, where a [`LayoutBlock::Pager`] may go.
+    /// Views that turn pages, where a [`LayoutBlock::Pager`] may go. The session summary is
+    /// one page: it is posted once and nobody is there to turn it.
     pub fn is_paged(self) -> bool {
-        self.is_list() || matches!(self, LayoutView::Lyrics)
+        matches!(
+            self,
+            LayoutView::Queue | LayoutView::History | LayoutView::Lyrics
+        )
     }
 }
 
@@ -352,6 +362,8 @@ pub struct BotLayouts {
     pub vote_passed: ViewLayout,
     #[serde(default = "default_equalizer")]
     pub equalizer: ViewLayout,
+    #[serde(default = "default_session")]
+    pub session: ViewLayout,
 }
 
 impl Default for BotLayouts {
@@ -374,6 +386,7 @@ impl Default for BotLayouts {
             vote: default_vote(),
             vote_passed: default_vote_passed(),
             equalizer: default_equalizer(),
+            session: default_session(),
         }
     }
 }
@@ -397,6 +410,7 @@ impl BotLayouts {
             LayoutView::Vote => &self.vote,
             LayoutView::VotePassed => &self.vote_passed,
             LayoutView::Equalizer => &self.equalizer,
+            LayoutView::Session => &self.session,
         }
     }
 
@@ -418,6 +432,7 @@ impl BotLayouts {
             LayoutView::Vote => &mut self.vote,
             LayoutView::VotePassed => &mut self.vote_passed,
             LayoutView::Equalizer => &mut self.equalizer,
+            LayoutView::Session => &mut self.session,
         }
     }
 
@@ -450,6 +465,7 @@ fn view_name(view: LayoutView) -> &'static str {
         LayoutView::Vote => "vote",
         LayoutView::VotePassed => "vote passed",
         LayoutView::Equalizer => "equalizer",
+        LayoutView::Session => "session",
     }
 }
 
@@ -635,6 +651,21 @@ pub fn default_equalizer() -> ViewLayout {
     ])
 }
 
+/// What the session was, posted when the bot leaves: the facts in the header, every play below.
+pub fn default_session() -> ViewLayout {
+    boxed(vec![
+        text(
+            "### {icon} {heading}\n-# {session.tracks} · {session.duration} of music · up to {session.listeners} listening · since {session.started}",
+        ),
+        separator(true, SeparatorSpacing::Small),
+        LayoutBlock::List {
+            item: "{track.line} · {play.length} · {requester}".to_string(),
+            empty: "-# Nothing played.".to_string(),
+            page_size: 25,
+        },
+    ])
+}
+
 pub fn default_queue() -> ViewLayout {
     ViewLayout {
         blocks: vec![
@@ -725,6 +756,8 @@ pub struct LayoutOverrides {
     pub vote_passed: Option<ViewLayout>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub equalizer: Option<ViewLayout>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub session: Option<ViewLayout>,
 }
 
 impl Default for LayoutOverrides {
@@ -747,6 +780,7 @@ impl Default for LayoutOverrides {
             vote: None,
             vote_passed: None,
             equalizer: None,
+            session: None,
         }
     }
 }
@@ -770,6 +804,7 @@ impl LayoutOverrides {
             LayoutView::Vote => self.vote.as_ref(),
             LayoutView::VotePassed => self.vote_passed.as_ref(),
             LayoutView::Equalizer => self.equalizer.as_ref(),
+            LayoutView::Session => self.session.as_ref(),
         }
     }
 

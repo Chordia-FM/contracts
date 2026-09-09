@@ -3,4 +3,4 @@
 /**
  * Which of the bot's messages a layout describes.
  */
-export type LayoutView = "now_playing" | "idle" | "queued" | "left" | "queue" | "history" | "queued_album" | "queued_artist" | "queued_playlist" | "lyrics" | "done" | "notice" | "error" | "vote" | "vote_passed" | "equalizer";
+export type LayoutView = "now_playing" | "idle" | "queued" | "left" | "queue" | "history" | "queued_album" | "queued_artist" | "queued_playlist" | "lyrics" | "done" | "notice" | "error" | "vote" | "vote_passed" | "equalizer" | "session";

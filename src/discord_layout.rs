@@ -60,10 +60,12 @@ pub enum LayoutView {
     Vote,
     /// The vote passed and the track was skipped.
     VotePassed,
+    /// `/eq` and the equalizer button: the panel.
+    Equalizer,
 }
 
 impl LayoutView {
-    pub const ALL: [LayoutView; 15] = [
+    pub const ALL: [LayoutView; 16] = [
         LayoutView::NowPlaying,
         LayoutView::Idle,
         LayoutView::Queued,
@@ -79,6 +81,7 @@ impl LayoutView {
         LayoutView::Error,
         LayoutView::Vote,
         LayoutView::VotePassed,
+        LayoutView::Equalizer,
     ];
 
     /// Views that show a list of entries and therefore need a [`LayoutBlock::List`].
@@ -168,6 +171,9 @@ pub enum ImageSource {
     BotAvatar,
     /// The server's icon.
     ServerIcon,
+    /// The equalizer's curve with its bands drawn on, fresh for the settings; only the equalizer
+    /// message has one.
+    Equalizer,
     /// Any address, a template like the texts.
     Url { url: String },
 }
@@ -246,6 +252,9 @@ pub enum LayoutBlock {
     /// On a list message, the first / back / page / next / last buttons, drawn where this sits
     /// when the list runs past one page. Without one the list shows its first page only.
     Pager,
+    /// On the equalizer message: the preset menu, the band menu, the nudge buttons and the
+    /// switch, four rows.
+    EqControls,
     /// The box with a bar down its side, holding any of the other parts.
     Container {
         accent: ContainerAccent,
@@ -278,6 +287,7 @@ impl LayoutBlock {
             LayoutBlock::Row { .. } => "row",
             LayoutBlock::List { .. } => "list",
             LayoutBlock::Pager => "pager",
+            LayoutBlock::EqControls => "eq_controls",
             LayoutBlock::Container { .. } => "container",
         }
     }
@@ -332,6 +342,8 @@ pub struct BotLayouts {
     pub vote: ViewLayout,
     #[serde(default = "default_vote_passed")]
     pub vote_passed: ViewLayout,
+    #[serde(default = "default_equalizer")]
+    pub equalizer: ViewLayout,
 }
 
 impl Default for BotLayouts {
@@ -353,6 +365,7 @@ impl Default for BotLayouts {
             error: default_error(),
             vote: default_vote(),
             vote_passed: default_vote_passed(),
+            equalizer: default_equalizer(),
         }
     }
 }
@@ -375,6 +388,7 @@ impl BotLayouts {
             LayoutView::Error => &self.error,
             LayoutView::Vote => &self.vote,
             LayoutView::VotePassed => &self.vote_passed,
+            LayoutView::Equalizer => &self.equalizer,
         }
     }
 
@@ -395,6 +409,7 @@ impl BotLayouts {
             LayoutView::Error => &mut self.error,
             LayoutView::Vote => &mut self.vote,
             LayoutView::VotePassed => &mut self.vote_passed,
+            LayoutView::Equalizer => &mut self.equalizer,
         }
     }
 
@@ -426,6 +441,7 @@ fn view_name(view: LayoutView) -> &'static str {
         LayoutView::Error => "error",
         LayoutView::Vote => "vote",
         LayoutView::VotePassed => "vote passed",
+        LayoutView::Equalizer => "equalizer",
     }
 }
 
@@ -587,6 +603,18 @@ pub fn default_vote_passed() -> ViewLayout {
 }
 
 /// The queue: a Clear button beside the header, the entries, the page buttons under the box.
+/// The equalizer panel: the curve with the bands drawn on it, then its controls.
+pub fn default_equalizer() -> ViewLayout {
+    boxed(vec![
+        text("### {icon} {heading}\n-# {eq.preset} · {eq.state}"),
+        separator(true, SeparatorSpacing::Small),
+        LayoutBlock::Gallery {
+            images: vec![ImageSource::Equalizer],
+        },
+        LayoutBlock::EqControls,
+    ])
+}
+
 pub fn default_queue() -> ViewLayout {
     ViewLayout {
         blocks: vec![
@@ -675,6 +703,8 @@ pub struct LayoutOverrides {
     pub vote: Option<ViewLayout>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub vote_passed: Option<ViewLayout>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub equalizer: Option<ViewLayout>,
 }
 
 impl Default for LayoutOverrides {
@@ -696,6 +726,7 @@ impl Default for LayoutOverrides {
             error: None,
             vote: None,
             vote_passed: None,
+            equalizer: None,
         }
     }
 }
@@ -718,6 +749,7 @@ impl LayoutOverrides {
             LayoutView::Error => self.error.as_ref(),
             LayoutView::Vote => self.vote.as_ref(),
             LayoutView::VotePassed => self.vote_passed.as_ref(),
+            LayoutView::Equalizer => self.equalizer.as_ref(),
         }
     }
 
@@ -817,6 +849,8 @@ struct Tally {
     blocks: usize,
     rows: usize,
     lists: usize,
+    /// Sets of equalizer controls.
+    panels: usize,
     seen: Vec<ControlButton>,
 }
 
@@ -863,6 +897,7 @@ fn check_blocks(
         }
         let rows = &mut tally.rows;
         let lists = &mut tally.lists;
+        let panels = &mut tally.panels;
         let seen = &mut tally.seen;
         {
             match block {
@@ -921,6 +956,22 @@ fn check_blocks(
                     }
                     for b in buttons {
                         check_button(b, seen)?;
+                    }
+                }
+                LayoutBlock::EqControls => {
+                    if view != LayoutView::Equalizer {
+                        return Err(format!(
+                            "the equalizer's controls do not belong in the {} message",
+                            view_name(view)
+                        ));
+                    }
+                    *panels += 1;
+                    if *panels > 1 {
+                        return Err("one set of equalizer controls per message".into());
+                    }
+                    *rows += 4;
+                    if *rows > MAX_ROWS {
+                        return Err(format!("at most {MAX_ROWS} rows of buttons"));
                     }
                 }
                 LayoutBlock::Pager => {
@@ -1112,6 +1163,41 @@ mod tests {
         assert!(ViewLayout { blocks: vec![] }
             .validate(LayoutView::Left)
             .is_err());
+    }
+
+    #[test]
+    fn equalizer_controls_belong_on_the_equalizer_message_once() {
+        let v = ViewLayout {
+            blocks: vec![text("x"), LayoutBlock::EqControls],
+        };
+        assert!(v
+            .validate(LayoutView::NowPlaying)
+            .unwrap_err()
+            .contains("equalizer's controls"));
+        ViewLayout {
+            blocks: vec![LayoutBlock::EqControls],
+        }
+        .validate(LayoutView::Equalizer)
+        .unwrap();
+        assert!(ViewLayout {
+            blocks: vec![LayoutBlock::EqControls, LayoutBlock::EqControls],
+        }
+        .validate(LayoutView::Equalizer)
+        .unwrap_err()
+        .contains("one set"));
+        // The four rows leave room for one more.
+        assert!(ViewLayout {
+            blocks: vec![
+                LayoutBlock::EqControls,
+                controls(&[ControlButton::Skip]),
+                controls(&[ControlButton::Stop]),
+            ],
+        }
+        .validate(LayoutView::Equalizer)
+        .unwrap_err()
+        .contains("rows of buttons"));
+        // The curve is an image like any other, only drawn on the equalizer message.
+        default_equalizer().validate(LayoutView::Equalizer).unwrap();
     }
 
     #[test]

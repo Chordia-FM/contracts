@@ -3,4 +3,4 @@
 /**
  * Where a picture comes from.
  */
-export type ImageSource = { "kind": "cover" } | { "kind": "artist" } | { "kind": "artist_banner" } | { "kind": "bot_avatar" } | { "kind": "server_icon" } | { "kind": "url", url: string, };
+export type ImageSource = { "kind": "cover" } | { "kind": "artist" } | { "kind": "artist_banner" } | { "kind": "bot_avatar" } | { "kind": "server_icon" } | { "kind": "equalizer" } | { "kind": "url", url: string, };

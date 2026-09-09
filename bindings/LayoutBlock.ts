@@ -12,4 +12,4 @@ export type LayoutBlock = { "kind": "text", content: string, } | { "kind": "sect
 /**
  * Older saves wrote one `content`; it reads as a single text.
  */
-texts: Array<string>, accessory: Accessory, } | { "kind": "gallery", images: Array<ImageSource>, } | { "kind": "separator", divider: boolean, spacing: SeparatorSpacing, } | { "kind": "row", buttons: Array<ButtonSpec>, } | { "kind": "list", item: string, empty: string, page_size: number, } | { "kind": "pager" } | { "kind": "container", accent: ContainerAccent, blocks: Array<LayoutBlock>, };
+texts: Array<string>, accessory: Accessory, } | { "kind": "gallery", images: Array<ImageSource>, } | { "kind": "separator", divider: boolean, spacing: SeparatorSpacing, } | { "kind": "row", buttons: Array<ButtonSpec>, } | { "kind": "list", item: string, empty: string, page_size: number, } | { "kind": "pager" } | { "kind": "eq_controls" } | { "kind": "container", accent: ContainerAccent, blocks: Array<LayoutBlock>, };

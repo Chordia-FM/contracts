@@ -4,4 +4,4 @@
  * One of the bot's controls, as a button. Each may appear once on a message; they work on any
  * message, and one pressed on a queue, history or lyrics page redraws that page.
  */
-export type ControlButton = "previous" | "play_pause" | "skip" | "stop" | "shuffle" | "loop" | "volume_down" | "volume_up" | "mute" | "seek_back" | "seek_forward" | "queue" | "clear" | "autoplay" | "lyrics" | "history" | "leave" | "equalizer";
+export type ControlButton = "previous" | "play_pause" | "skip" | "stop" | "shuffle" | "loop" | "volume_down" | "volume_up" | "mute" | "seek_back" | "seek_forward" | "queue" | "clear" | "autoplay" | "lyrics" | "history" | "leave" | "equalizer" | "eq_toggle";

@@ -130,10 +130,12 @@ pub enum ControlButton {
     Leave,
     /// Opens the equalizer panel.
     Equalizer,
+    /// The equalizer on or off; the icon is white while off.
+    EqToggle,
 }
 
 impl ControlButton {
-    pub const ALL: [ControlButton; 18] = [
+    pub const ALL: [ControlButton; 19] = [
         ControlButton::Previous,
         ControlButton::PlayPause,
         ControlButton::Skip,
@@ -152,6 +154,7 @@ impl ControlButton {
         ControlButton::History,
         ControlButton::Leave,
         ControlButton::Equalizer,
+        ControlButton::EqToggle,
     ];
 }
 
@@ -252,9 +255,12 @@ pub enum LayoutBlock {
     /// On a list message, the first / back / page / next / last buttons, drawn where this sits
     /// when the list runs past one page. Without one the list shows its first page only.
     Pager,
-    /// On the equalizer message: the preset menu, the band menu, the nudge buttons and the
-    /// switch, four rows.
-    EqControls,
+    /// On the equalizer message: the preset menu, one row.
+    EqPresets,
+    /// On the equalizer message: the menu of the band the nudge buttons act on, one row.
+    EqBands,
+    /// On the equalizer message: the nudge buttons (3 and 1 dB either way) and Flat, one row.
+    EqNudges,
     /// The box with a bar down its side, holding any of the other parts.
     Container {
         accent: ContainerAccent,
@@ -287,7 +293,9 @@ impl LayoutBlock {
             LayoutBlock::Row { .. } => "row",
             LayoutBlock::List { .. } => "list",
             LayoutBlock::Pager => "pager",
-            LayoutBlock::EqControls => "eq_controls",
+            LayoutBlock::EqPresets => "eq_presets",
+            LayoutBlock::EqBands => "eq_bands",
+            LayoutBlock::EqNudges => "eq_nudges",
             LayoutBlock::Container { .. } => "container",
         }
     }
@@ -603,7 +611,8 @@ pub fn default_vote_passed() -> ViewLayout {
 }
 
 /// The queue: a Clear button beside the header, the entries, the page buttons under the box.
-/// The equalizer panel: the curve with the bands drawn on it, then its controls.
+/// The equalizer panel: the curve with the bands drawn on it, the two menus, the nudges and
+/// the switch.
 pub fn default_equalizer() -> ViewLayout {
     boxed(vec![
         text("### {icon} {heading}\n-# {eq.preset} · {eq.state}"),
@@ -611,7 +620,10 @@ pub fn default_equalizer() -> ViewLayout {
         LayoutBlock::Gallery {
             images: vec![ImageSource::Equalizer],
         },
-        LayoutBlock::EqControls,
+        LayoutBlock::EqPresets,
+        LayoutBlock::EqBands,
+        LayoutBlock::EqNudges,
+        controls(&[ControlButton::EqToggle]),
     ])
 }
 
@@ -849,8 +861,8 @@ struct Tally {
     blocks: usize,
     rows: usize,
     lists: usize,
-    /// Sets of equalizer controls.
-    panels: usize,
+    /// The equalizer's preset menu, band menu and nudge row, each once.
+    eq_parts: Vec<&'static str>,
     seen: Vec<ControlButton>,
 }
 
@@ -897,7 +909,7 @@ fn check_blocks(
         }
         let rows = &mut tally.rows;
         let lists = &mut tally.lists;
-        let panels = &mut tally.panels;
+        let eq_parts = &mut tally.eq_parts;
         let seen = &mut tally.seen;
         {
             match block {
@@ -958,18 +970,23 @@ fn check_blocks(
                         check_button(b, seen)?;
                     }
                 }
-                LayoutBlock::EqControls => {
+                LayoutBlock::EqPresets | LayoutBlock::EqBands | LayoutBlock::EqNudges => {
+                    let what = match block {
+                        LayoutBlock::EqPresets => "preset menu",
+                        LayoutBlock::EqBands => "band menu",
+                        _ => "nudge buttons",
+                    };
                     if view != LayoutView::Equalizer {
                         return Err(format!(
-                            "the equalizer's controls do not belong in the {} message",
+                            "the equalizer's {what} do not belong in the {} message",
                             view_name(view)
                         ));
                     }
-                    *panels += 1;
-                    if *panels > 1 {
-                        return Err("one set of equalizer controls per message".into());
+                    if eq_parts.contains(&what) {
+                        return Err(format!("the equalizer's {what} once per message"));
                     }
-                    *rows += 4;
+                    eq_parts.push(what);
+                    *rows += 1;
                     if *rows > MAX_ROWS {
                         return Err(format!("at most {MAX_ROWS} rows of buttons"));
                     }
@@ -1166,37 +1183,51 @@ mod tests {
     }
 
     #[test]
-    fn equalizer_controls_belong_on_the_equalizer_message_once() {
+    fn equalizer_parts_belong_on_the_equalizer_message_once_each() {
         let v = ViewLayout {
-            blocks: vec![text("x"), LayoutBlock::EqControls],
+            blocks: vec![text("x"), LayoutBlock::EqPresets],
         };
         assert!(v
             .validate(LayoutView::NowPlaying)
             .unwrap_err()
-            .contains("equalizer's controls"));
+            .contains("preset menu"));
         ViewLayout {
-            blocks: vec![LayoutBlock::EqControls],
+            blocks: vec![
+                LayoutBlock::EqNudges,
+                LayoutBlock::EqBands,
+                LayoutBlock::EqPresets,
+            ],
         }
         .validate(LayoutView::Equalizer)
         .unwrap();
         assert!(ViewLayout {
-            blocks: vec![LayoutBlock::EqControls, LayoutBlock::EqControls],
+            blocks: vec![LayoutBlock::EqBands, LayoutBlock::EqBands],
         }
         .validate(LayoutView::Equalizer)
         .unwrap_err()
-        .contains("one set"));
-        // The four rows leave room for one more.
+        .contains("band menu once"));
+        // Each part is a row; the switch is a control like any other, anywhere.
         assert!(ViewLayout {
             blocks: vec![
-                LayoutBlock::EqControls,
-                controls(&[ControlButton::Skip]),
+                LayoutBlock::EqPresets,
+                LayoutBlock::EqBands,
+                LayoutBlock::EqNudges,
+                controls(&[ControlButton::EqToggle]),
+                controls(&[ControlButton::Equalizer]),
                 controls(&[ControlButton::Stop]),
             ],
         }
         .validate(LayoutView::Equalizer)
         .unwrap_err()
         .contains("rows of buttons"));
-        // The curve is an image like any other, only drawn on the equalizer message.
+        ViewLayout {
+            blocks: vec![controls(&[
+                ControlButton::EqToggle,
+                ControlButton::Equalizer,
+            ])],
+        }
+        .validate(LayoutView::NowPlaying)
+        .unwrap();
         default_equalizer().validate(LayoutView::Equalizer).unwrap();
     }
 

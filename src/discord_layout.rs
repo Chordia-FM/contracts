@@ -201,12 +201,15 @@ pub enum LayoutBlock {
     /// Up to five buttons side by side.
     Row { buttons: Vec<ButtonSpec> },
     /// On a list message, the line every entry is written with; `empty` shows when there are
-    /// none. Paging buttons are added after it when the list is longer than a page.
+    /// none. A [`Pager`](LayoutBlock::Pager) somewhere on the message pages it.
     List {
         item: String,
         empty: String,
         page_size: u8,
     },
+    /// On a list message, the first / back / page / next / last buttons, drawn where this sits
+    /// when the list runs past one page. Without one the list shows its first page only.
+    Pager,
     /// The box with a bar down its side, holding any of the other parts.
     Container {
         accent: ContainerAccent,
@@ -238,13 +241,14 @@ impl LayoutBlock {
             LayoutBlock::Separator { .. } => "separator",
             LayoutBlock::Row { .. } => "row",
             LayoutBlock::List { .. } => "list",
+            LayoutBlock::Pager => "pager",
             LayoutBlock::Container { .. } => "container",
         }
     }
 }
 
 /// What saved layouts are stamped with; older ones are brought up to date by the library.
-pub const LAYOUT_VERSION: u32 = 3;
+pub const LAYOUT_VERSION: u32 = 4;
 
 /// The blocks of one view, in order.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -436,6 +440,8 @@ pub fn default_queue() -> ViewLayout {
             empty: "-# The queue is empty.".to_string(),
             page_size: 10,
         },
+        separator(false, SeparatorSpacing::Large),
+        LayoutBlock::Pager,
     ])
 }
 
@@ -449,6 +455,8 @@ pub fn default_history() -> ViewLayout {
             empty: "-# Nothing has played yet.".to_string(),
             page_size: 10,
         },
+        separator(false, SeparatorSpacing::Large),
+        LayoutBlock::Pager,
     ])
 }
 
@@ -531,7 +539,7 @@ impl BotLayouts {
 }
 
 /// The most blocks one view may hold. Well under Discord's forty components even when every
-/// block is a section with a thumbnail and the list adds its paging row.
+/// block is a section with a thumbnail or a row of page buttons.
 pub const MAX_BLOCKS: usize = 20;
 pub const MAX_ROWS: usize = 5;
 pub const MAX_PER_ROW: usize = 5;
@@ -708,6 +716,18 @@ fn check_blocks(
                     }
                     for b in buttons {
                         check_button(view, b, seen)?;
+                    }
+                }
+                LayoutBlock::Pager => {
+                    if !view.is_list() {
+                        return Err(format!(
+                            "page buttons do not belong in the {} message",
+                            view_name(view)
+                        ));
+                    }
+                    *rows += 1;
+                    if *rows > MAX_ROWS {
+                        return Err(format!("at most {MAX_ROWS} rows of buttons"));
                     }
                 }
                 LayoutBlock::List {
@@ -894,5 +914,39 @@ mod tests {
         assert!(ViewLayout { blocks: vec![] }
             .validate(LayoutView::Left)
             .is_err());
+    }
+
+    #[test]
+    fn page_buttons_belong_on_lists_and_count_as_rows() {
+        let v = ViewLayout {
+            blocks: vec![text("x"), LayoutBlock::Pager],
+        };
+        assert!(v
+            .validate(LayoutView::NowPlaying)
+            .unwrap_err()
+            .contains("page buttons"));
+        let list = LayoutBlock::List {
+            item: "{track.line}".into(),
+            empty: "-".into(),
+            page_size: 10,
+        };
+        // Anywhere on the message, and more than once.
+        ViewLayout {
+            blocks: vec![LayoutBlock::Pager, list.clone(), LayoutBlock::Pager],
+        }
+        .validate(LayoutView::Queue)
+        .unwrap();
+        // Without one a list message is still whole: it shows its first page.
+        ViewLayout {
+            blocks: vec![list.clone()],
+        }
+        .validate(LayoutView::History)
+        .unwrap();
+        let mut blocks = vec![list];
+        blocks.extend(vec![LayoutBlock::Pager; MAX_ROWS + 1]);
+        assert!(ViewLayout { blocks }
+            .validate(LayoutView::Queue)
+            .unwrap_err()
+            .contains("rows of buttons"));
     }
 }

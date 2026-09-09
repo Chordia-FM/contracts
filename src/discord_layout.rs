@@ -46,6 +46,8 @@ pub enum LayoutView {
     QueuedAlbum,
     /// `/play` of an artist: the toast for the tracks added.
     QueuedArtist,
+    /// `/playlist`: the toast for the tracks added from a Chordia playlist.
+    QueuedPlaylist,
     /// `/lyrics`: a page of the current track's lyrics.
     Lyrics,
     /// A command did what it was asked: "Skipped", "Paused", "Volume".
@@ -61,7 +63,7 @@ pub enum LayoutView {
 }
 
 impl LayoutView {
-    pub const ALL: [LayoutView; 14] = [
+    pub const ALL: [LayoutView; 15] = [
         LayoutView::NowPlaying,
         LayoutView::Idle,
         LayoutView::Queued,
@@ -70,6 +72,7 @@ impl LayoutView {
         LayoutView::History,
         LayoutView::QueuedAlbum,
         LayoutView::QueuedArtist,
+        LayoutView::QueuedPlaylist,
         LayoutView::Lyrics,
         LayoutView::Done,
         LayoutView::Notice,
@@ -278,7 +281,7 @@ impl LayoutBlock {
 }
 
 /// What saved layouts are stamped with; older ones are brought up to date by the library.
-pub const LAYOUT_VERSION: u32 = 5;
+pub const LAYOUT_VERSION: u32 = 6;
 
 /// The blocks of one view, in order.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -312,6 +315,8 @@ pub struct BotLayouts {
     pub queued_album: ViewLayout,
     #[serde(default = "default_queued_artist")]
     pub queued_artist: ViewLayout,
+    #[serde(default = "default_queued_playlist")]
+    pub queued_playlist: ViewLayout,
     #[serde(default = "default_lyrics")]
     pub lyrics: ViewLayout,
     #[serde(default = "default_done")]
@@ -338,6 +343,7 @@ impl Default for BotLayouts {
             history: default_history(),
             queued_album: default_queued_album(),
             queued_artist: default_queued_artist(),
+            queued_playlist: default_queued_playlist(),
             lyrics: default_lyrics(),
             done: default_done(),
             notice: default_notice(),
@@ -359,6 +365,7 @@ impl BotLayouts {
             LayoutView::History => &self.history,
             LayoutView::QueuedAlbum => &self.queued_album,
             LayoutView::QueuedArtist => &self.queued_artist,
+            LayoutView::QueuedPlaylist => &self.queued_playlist,
             LayoutView::Lyrics => &self.lyrics,
             LayoutView::Done => &self.done,
             LayoutView::Notice => &self.notice,
@@ -378,6 +385,7 @@ impl BotLayouts {
             LayoutView::History => &mut self.history,
             LayoutView::QueuedAlbum => &mut self.queued_album,
             LayoutView::QueuedArtist => &mut self.queued_artist,
+            LayoutView::QueuedPlaylist => &mut self.queued_playlist,
             LayoutView::Lyrics => &mut self.lyrics,
             LayoutView::Done => &mut self.done,
             LayoutView::Notice => &mut self.notice,
@@ -408,6 +416,7 @@ fn view_name(view: LayoutView) -> &'static str {
         LayoutView::History => "history",
         LayoutView::QueuedAlbum => "added album",
         LayoutView::QueuedArtist => "added artist",
+        LayoutView::QueuedPlaylist => "added playlist",
         LayoutView::Lyrics => "lyrics",
         LayoutView::Done => "done",
         LayoutView::Notice => "notice",
@@ -448,34 +457,33 @@ fn boxed(blocks: Vec<LayoutBlock>) -> ViewLayout {
 
 /// The design the bot ships with: the controller as it has always looked, in the template
 /// language, so it is also a worked example of the variables.
+/// The box with the bot's colour down its side, holding some of a message's parts.
+fn container(blocks: Vec<LayoutBlock>) -> LayoutBlock {
+    LayoutBlock::Container {
+        accent: ContainerAccent::Bot,
+        blocks,
+    }
+}
+
+/// The controller: the header and everything beside the art in the box, the two rows of
+/// controls under it.
 pub fn default_now_playing() -> ViewLayout {
-    boxed(vec![
-        text("### {icon} {heading} in {channel}"),
-        separator(true, SeparatorSpacing::Small),
-        LayoutBlock::Section {
-            texts: vec![
-                "{track}\n-# Requested by {requester}\n{player.progress_bar:12} {player.position} / {track.duration}\n-# {queue.count} tracks in queue ({queue.duration}) · Volume: {player.volume}%"
-                    .to_string(),
-            ],
-            accessory: Accessory::Image {
-                source: ImageSource::Cover,
-            },
-        },
-        separator(false, SeparatorSpacing::Large),
-        controls(&[
-            ControlButton::Loop,
-            ControlButton::Previous,
-            ControlButton::PlayPause,
-            ControlButton::Skip,
-            ControlButton::Shuffle,
-        ]),
-        controls(&[
-            ControlButton::Queue,
-            ControlButton::Autoplay,
-            ControlButton::Lyrics,
-            ControlButton::Leave,
-        ]),
-    ])
+    ViewLayout {
+        blocks: vec![
+            container(vec![
+                text("### {icon} {heading} in {channel}"),
+                separator(true, SeparatorSpacing::Small),
+                LayoutBlock::Section {
+                    texts: vec!["{track}\n-# Requested by {requester}\n{player.progress_bar:12} {player.position} / {track.duration}\n-# {queue.count} tracks in queue ({queue.duration}) · Volume: {player.volume}%".to_string()],
+                    accessory: Accessory::Image {
+                        source: ImageSource::Cover,
+                    },
+                },
+            ]),
+            controls(&[ControlButton::Loop, ControlButton::Previous, ControlButton::PlayPause, ControlButton::Skip, ControlButton::Shuffle]),
+            controls(&[ControlButton::Queue, ControlButton::History, ControlButton::Autoplay, ControlButton::Lyrics, ControlButton::Leave]),
+        ],
+    }
 }
 
 pub fn default_idle() -> ViewLayout {
@@ -486,6 +494,7 @@ pub fn default_idle() -> ViewLayout {
     ])
 }
 
+/// Added a track: what it is, how long it runs and when it plays, beside its cover.
 pub fn default_queued() -> ViewLayout {
     boxed(vec![
         text("### {icon} {heading}"),
@@ -501,36 +510,43 @@ pub fn default_queued() -> ViewLayout {
 
 pub fn default_left() -> ViewLayout {
     boxed(vec![
-        text("### {icon} {heading}\n-# {bot}"),
+        text("### {icon} {heading}"),
         separator(true, SeparatorSpacing::Small),
         text("-# {left.reason} · `/play` to bring me back"),
     ])
 }
 
-/// The album toast starts as the track toast: what was added reads as the album.
+/// The album, artist and playlist toasts start as the track toast: what was added reads as
+/// the album, the artist or the playlist.
 pub fn default_queued_album() -> ViewLayout {
     default_queued()
 }
 
-/// The artist toast starts as the track toast: what was added reads as the artist, and the
-/// picture is theirs.
 pub fn default_queued_artist() -> ViewLayout {
     default_queued()
 }
 
+pub fn default_queued_playlist() -> ViewLayout {
+    default_queued()
+}
+
+/// A page of lyrics under the title, the page buttons under the box.
 pub fn default_lyrics() -> ViewLayout {
-    boxed(vec![
-        text("### {icon} {track.title}\n-# {track.artist}"),
-        separator(true, SeparatorSpacing::Small),
-        text("{lyrics}"),
-        separator(false, SeparatorSpacing::Large),
-        LayoutBlock::Pager,
-    ])
+    ViewLayout {
+        blocks: vec![
+            container(vec![
+                text("### {icon} {track.title}\n-# {track.artist}"),
+                separator(true, SeparatorSpacing::Small),
+                text("{lyrics}"),
+            ]),
+            LayoutBlock::Pager,
+        ],
+    }
 }
 
 /// A reply: the title line, then the detail under a divider when there is any (the renderer
 /// drops the divider with it, so a bare "Paused" is one line).
-fn reply() -> ViewLayout {
+pub fn default_done() -> ViewLayout {
     boxed(vec![
         text("### {icon} {heading}"),
         separator(true, SeparatorSpacing::Small),
@@ -538,23 +554,27 @@ fn reply() -> ViewLayout {
     ])
 }
 
-pub fn default_done() -> ViewLayout {
-    reply()
-}
-
 pub fn default_notice() -> ViewLayout {
-    reply()
+    boxed(vec![
+        text("### {icon} {heading}"),
+        separator(true, SeparatorSpacing::Small),
+        text("{detail}"),
+    ])
 }
 
 pub fn default_error() -> ViewLayout {
-    reply()
+    boxed(vec![
+        text("### {icon} {heading}"),
+        separator(true, SeparatorSpacing::Small),
+        text("{detail}"),
+    ])
 }
 
 /// A vote to skip: who wants it, and how far along it is.
 pub fn default_vote() -> ViewLayout {
-    boxed(vec![text(
-        "### {icon} {heading}\n{vote.by} wants to skip {track.line}\n-# {vote.count} of {vote.needed} votes · {vote.percent}% of {vote.listeners} listening",
-    )])
+    boxed(vec![
+        text("### {icon} {heading}\n{vote.by} wants to skip {track.line}\n-# {vote.count} of {vote.needed} votes · {vote.percent}% of {vote.listeners} listening"),
+    ])
 }
 
 pub fn default_vote_passed() -> ViewLayout {
@@ -563,35 +583,54 @@ pub fn default_vote_passed() -> ViewLayout {
     )])
 }
 
+/// The queue: a Clear button beside the header, the entries, the page buttons under the box.
 pub fn default_queue() -> ViewLayout {
-    boxed(vec![
-        text("### {icon} {heading}\n-# {queue.tracks} · {queue.duration} · {bot}"),
-        separator(true, SeparatorSpacing::Small),
-        text("{player.line}"),
-        separator(false, SeparatorSpacing::Small),
-        LayoutBlock::List {
-            item: "`{index}.` {track.line} · {track.duration} · {requester}".to_string(),
-            empty: "-# The queue is empty.".to_string(),
-            page_size: 10,
-        },
-        separator(false, SeparatorSpacing::Large),
-        LayoutBlock::Pager,
-    ])
+    ViewLayout {
+        blocks: vec![
+            container(vec![
+                LayoutBlock::Section {
+                    texts: vec![
+                        "### {icon} {heading}\n-# {queue.tracks} · {queue.duration} · {bot}"
+                            .to_string(),
+                    ],
+                    accessory: Accessory::Button {
+                        button: ButtonSpec::Control {
+                            control: ControlButton::Clear,
+                        },
+                    },
+                },
+                separator(true, SeparatorSpacing::Small),
+                text("{player.line}"),
+                separator(false, SeparatorSpacing::Small),
+                LayoutBlock::List {
+                    item: "`{index}.` {track.line} · {track.duration} · {requester}".to_string(),
+                    empty: "-# The queue is empty.".to_string(),
+                    page_size: 10,
+                },
+                separator(false, SeparatorSpacing::Large),
+            ]),
+            LayoutBlock::Pager,
+        ],
+    }
 }
 
 pub fn default_history() -> ViewLayout {
-    boxed(vec![
-        text("### {icon} {heading}\n-# {bot}"),
-        separator(true, SeparatorSpacing::Small),
-        LayoutBlock::List {
-            item: "{track.line}\n-# {play.at} · {play.length} · {requester} · {play.counted}"
-                .to_string(),
-            empty: "-# Nothing has played yet.".to_string(),
-            page_size: 10,
-        },
-        separator(false, SeparatorSpacing::Large),
-        LayoutBlock::Pager,
-    ])
+    ViewLayout {
+        blocks: vec![
+            container(vec![
+                text("### {icon} {heading}"),
+                separator(true, SeparatorSpacing::Small),
+                LayoutBlock::List {
+                    item:
+                        "{track.line}\n-# {play.at} · {play.length} · {requester} · {play.counted}"
+                            .to_string(),
+                    empty: "-# Nothing has played yet.".to_string(),
+                    page_size: 10,
+                },
+            ]),
+            LayoutBlock::Pager,
+        ],
+    }
 }
 
 /// A server's own versions of some of the bot's messages. A view that is absent means "the
@@ -620,6 +659,8 @@ pub struct LayoutOverrides {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub queued_artist: Option<ViewLayout>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub queued_playlist: Option<ViewLayout>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub lyrics: Option<ViewLayout>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub done: Option<ViewLayout>,
@@ -645,6 +686,7 @@ impl Default for LayoutOverrides {
             history: None,
             queued_album: None,
             queued_artist: None,
+            queued_playlist: None,
             lyrics: None,
             done: None,
             notice: None,
@@ -666,6 +708,7 @@ impl LayoutOverrides {
             LayoutView::History => self.history.as_ref(),
             LayoutView::QueuedAlbum => self.queued_album.as_ref(),
             LayoutView::QueuedArtist => self.queued_artist.as_ref(),
+            LayoutView::QueuedPlaylist => self.queued_playlist.as_ref(),
             LayoutView::Lyrics => self.lyrics.as_ref(),
             LayoutView::Done => self.done.as_ref(),
             LayoutView::Notice => self.notice.as_ref(),
@@ -938,17 +981,11 @@ mod tests {
         assert_eq!(LayoutOverrides::default().version, LAYOUT_VERSION);
     }
 
-    fn inner(v: &mut ViewLayout) -> &mut Vec<LayoutBlock> {
-        match &mut v.blocks[0] {
-            LayoutBlock::Container { blocks, .. } => blocks,
-            _ => panic!("the default is boxed"),
-        }
-    }
-
     #[test]
     fn the_rules_refuse_what_discord_would() {
+        // The controller's two rows sit under its box.
         let mut v = default_now_playing();
-        if let LayoutBlock::Row { buttons } = &mut inner(&mut v)[4] {
+        if let LayoutBlock::Row { buttons } = &mut v.blocks[1] {
             buttons.push(ButtonSpec::Control {
                 control: ControlButton::Stop,
             });
@@ -959,7 +996,7 @@ mod tests {
             .contains("at most 5"));
 
         let mut v = default_now_playing();
-        if let LayoutBlock::Row { buttons } = &mut inner(&mut v)[5] {
+        if let LayoutBlock::Row { buttons } = &mut v.blocks[2] {
             buttons[0] = ButtonSpec::Control {
                 control: ControlButton::Skip,
             };

@@ -8,4 +8,4 @@ export type BotLayouts = {
 /**
  * [`LAYOUT_VERSION`] when saved by this code; 0 for anything older.
  */
-version: number, now_playing: ViewLayout, idle: ViewLayout, queued: ViewLayout, left: ViewLayout, queue: ViewLayout, history: ViewLayout, queued_album: ViewLayout, queued_artist: ViewLayout, lyrics: ViewLayout, done: ViewLayout, notice: ViewLayout, error: ViewLayout, vote: ViewLayout, vote_passed: ViewLayout, };
+version: number, now_playing: ViewLayout, idle: ViewLayout, queued: ViewLayout, left: ViewLayout, queue: ViewLayout, history: ViewLayout, queued_album: ViewLayout, queued_artist: ViewLayout, queued_playlist: ViewLayout, lyrics: ViewLayout, done: ViewLayout, notice: ViewLayout, error: ViewLayout, vote: ViewLayout, vote_passed: ViewLayout, };

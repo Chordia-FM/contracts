@@ -147,3 +147,70 @@ pub struct ArtistArt {
 pub struct ArtistArtResponse {
     pub artists: Vec<ArtistArt>,
 }
+
+/// `POST /v1/catalog/playlists:search`: playlists a server's bot may queue, by name: the server
+/// owner's own (whatever their visibility) and anyone's public ones.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export))]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+pub struct PlaylistSearchRequest {
+    pub query: String,
+    /// At most this many, the owner's first; capped by the Hub.
+    #[serde(default = "default_playlist_limit")]
+    pub limit: u32,
+}
+
+fn default_playlist_limit() -> u32 {
+    10
+}
+
+/// A playlist the bot may queue.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export))]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+pub struct PlaylistHit {
+    pub id: Uuid,
+    pub name: String,
+    pub owner_handle: String,
+    /// The server owner's own; otherwise it is someone's public playlist.
+    pub owned: bool,
+    /// Every track on it, whether or not this server holds them.
+    pub track_count: u32,
+    pub duration_ms: i64,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export))]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+pub struct PlaylistSearchResponse {
+    pub playlists: Vec<PlaylistHit>,
+}
+
+/// `POST /v1/catalog/playlists:tracks`: a playlist's tracks as the refs of this server's own
+/// libraries, in playlist order. Tracks the server does not hold are counted, not returned.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export))]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+pub struct PlaylistTracksRequest {
+    pub playlist_id: Uuid,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export))]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+pub struct PlaylistTrackRef {
+    pub library_id: Uuid,
+    /// The library's own id for the track.
+    pub track_ref: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export))]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+pub struct PlaylistTracksResponse {
+    pub name: String,
+    pub owner_handle: String,
+    pub tracks: Vec<PlaylistTrackRef>,
+    /// Tracks on the playlist that none of the server's libraries hold.
+    pub missing: u32,
+}

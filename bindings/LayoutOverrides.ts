@@ -9,4 +9,4 @@ export type LayoutOverrides = {
 /**
  * [`LAYOUT_VERSION`] when saved by this code; 0 for anything older.
  */
-version: number, now_playing?: ViewLayout | null, idle?: ViewLayout | null, queued?: ViewLayout | null, left?: ViewLayout | null, queue?: ViewLayout | null, history?: ViewLayout | null, };
+version: number, now_playing?: ViewLayout | null, idle?: ViewLayout | null, queued?: ViewLayout | null, left?: ViewLayout | null, queue?: ViewLayout | null, history?: ViewLayout | null, queued_album?: ViewLayout | null, queued_artist?: ViewLayout | null, lyrics?: ViewLayout | null, done?: ViewLayout | null, notice?: ViewLayout | null, error?: ViewLayout | null, };

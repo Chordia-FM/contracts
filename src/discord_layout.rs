@@ -42,21 +42,44 @@ pub enum LayoutView {
     Queue,
     /// `/history`: what was heard.
     History,
+    /// `/play` of an album: the toast for the tracks added.
+    QueuedAlbum,
+    /// `/play` of an artist: the toast for the tracks added.
+    QueuedArtist,
+    /// `/lyrics`: a page of the current track's lyrics.
+    Lyrics,
+    /// A command did what it was asked: "Skipped", "Paused", "Volume".
+    Done,
+    /// A heads-up rather than a failure: "Nothing is playing", "Join a voice channel first".
+    Notice,
+    /// Something went wrong.
+    Error,
 }
 
 impl LayoutView {
-    pub const ALL: [LayoutView; 6] = [
+    pub const ALL: [LayoutView; 12] = [
         LayoutView::NowPlaying,
         LayoutView::Idle,
         LayoutView::Queued,
         LayoutView::Left,
         LayoutView::Queue,
         LayoutView::History,
+        LayoutView::QueuedAlbum,
+        LayoutView::QueuedArtist,
+        LayoutView::Lyrics,
+        LayoutView::Done,
+        LayoutView::Notice,
+        LayoutView::Error,
     ];
 
     /// Views that show a list of entries and therefore need a [`LayoutBlock::List`].
     pub fn is_list(self) -> bool {
         matches!(self, LayoutView::Queue | LayoutView::History)
+    }
+
+    /// Views that turn pages, where a [`LayoutBlock::Pager`] may go.
+    pub fn is_paged(self) -> bool {
+        self.is_list() || matches!(self, LayoutView::Lyrics)
     }
 }
 
@@ -248,7 +271,7 @@ impl LayoutBlock {
 }
 
 /// What saved layouts are stamped with; older ones are brought up to date by the library.
-pub const LAYOUT_VERSION: u32 = 4;
+pub const LAYOUT_VERSION: u32 = 5;
 
 /// The blocks of one view, in order.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -278,6 +301,18 @@ pub struct BotLayouts {
     pub queue: ViewLayout,
     #[serde(default = "default_history")]
     pub history: ViewLayout,
+    #[serde(default = "default_queued_album")]
+    pub queued_album: ViewLayout,
+    #[serde(default = "default_queued_artist")]
+    pub queued_artist: ViewLayout,
+    #[serde(default = "default_lyrics")]
+    pub lyrics: ViewLayout,
+    #[serde(default = "default_done")]
+    pub done: ViewLayout,
+    #[serde(default = "default_notice")]
+    pub notice: ViewLayout,
+    #[serde(default = "default_error")]
+    pub error: ViewLayout,
 }
 
 impl Default for BotLayouts {
@@ -290,6 +325,12 @@ impl Default for BotLayouts {
             left: default_left(),
             queue: default_queue(),
             history: default_history(),
+            queued_album: default_queued_album(),
+            queued_artist: default_queued_artist(),
+            lyrics: default_lyrics(),
+            done: default_done(),
+            notice: default_notice(),
+            error: default_error(),
         }
     }
 }
@@ -303,6 +344,12 @@ impl BotLayouts {
             LayoutView::Left => &self.left,
             LayoutView::Queue => &self.queue,
             LayoutView::History => &self.history,
+            LayoutView::QueuedAlbum => &self.queued_album,
+            LayoutView::QueuedArtist => &self.queued_artist,
+            LayoutView::Lyrics => &self.lyrics,
+            LayoutView::Done => &self.done,
+            LayoutView::Notice => &self.notice,
+            LayoutView::Error => &self.error,
         }
     }
 
@@ -314,6 +361,12 @@ impl BotLayouts {
             LayoutView::Left => &mut self.left,
             LayoutView::Queue => &mut self.queue,
             LayoutView::History => &mut self.history,
+            LayoutView::QueuedAlbum => &mut self.queued_album,
+            LayoutView::QueuedArtist => &mut self.queued_artist,
+            LayoutView::Lyrics => &mut self.lyrics,
+            LayoutView::Done => &mut self.done,
+            LayoutView::Notice => &mut self.notice,
+            LayoutView::Error => &mut self.error,
         }
     }
 
@@ -336,6 +389,12 @@ fn view_name(view: LayoutView) -> &'static str {
         LayoutView::Left => "left",
         LayoutView::Queue => "queue",
         LayoutView::History => "history",
+        LayoutView::QueuedAlbum => "added album",
+        LayoutView::QueuedArtist => "added artist",
+        LayoutView::Lyrics => "lyrics",
+        LayoutView::Done => "done",
+        LayoutView::Notice => "notice",
+        LayoutView::Error => "error",
     }
 }
 
@@ -429,6 +488,49 @@ pub fn default_left() -> ViewLayout {
     ])
 }
 
+/// The album toast starts as the track toast: what was added reads as the album.
+pub fn default_queued_album() -> ViewLayout {
+    default_queued()
+}
+
+/// The artist toast starts as the track toast: what was added reads as the artist, and the
+/// picture is theirs.
+pub fn default_queued_artist() -> ViewLayout {
+    default_queued()
+}
+
+pub fn default_lyrics() -> ViewLayout {
+    boxed(vec![
+        text("### {icon} {track.title}\n-# {track.artist}"),
+        separator(true, SeparatorSpacing::Small),
+        text("{lyrics}"),
+        separator(false, SeparatorSpacing::Large),
+        LayoutBlock::Pager,
+    ])
+}
+
+/// A reply: the title line, then the detail under a divider when there is any (the renderer
+/// drops the divider with it, so a bare "Paused" is one line).
+fn reply() -> ViewLayout {
+    boxed(vec![
+        text("### {icon} {heading}"),
+        separator(true, SeparatorSpacing::Small),
+        text("{detail}"),
+    ])
+}
+
+pub fn default_done() -> ViewLayout {
+    reply()
+}
+
+pub fn default_notice() -> ViewLayout {
+    reply()
+}
+
+pub fn default_error() -> ViewLayout {
+    reply()
+}
+
 pub fn default_queue() -> ViewLayout {
     boxed(vec![
         text("### {icon} {heading}\n-# {queue.tracks} · {queue.duration} · {bot}"),
@@ -481,6 +583,18 @@ pub struct LayoutOverrides {
     pub queue: Option<ViewLayout>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub history: Option<ViewLayout>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub queued_album: Option<ViewLayout>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub queued_artist: Option<ViewLayout>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub lyrics: Option<ViewLayout>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub done: Option<ViewLayout>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub notice: Option<ViewLayout>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub error: Option<ViewLayout>,
 }
 
 impl Default for LayoutOverrides {
@@ -493,6 +607,12 @@ impl Default for LayoutOverrides {
             left: None,
             queue: None,
             history: None,
+            queued_album: None,
+            queued_artist: None,
+            lyrics: None,
+            done: None,
+            notice: None,
+            error: None,
         }
     }
 }
@@ -506,6 +626,12 @@ impl LayoutOverrides {
             LayoutView::Left => self.left.as_ref(),
             LayoutView::Queue => self.queue.as_ref(),
             LayoutView::History => self.history.as_ref(),
+            LayoutView::QueuedAlbum => self.queued_album.as_ref(),
+            LayoutView::QueuedArtist => self.queued_artist.as_ref(),
+            LayoutView::Lyrics => self.lyrics.as_ref(),
+            LayoutView::Done => self.done.as_ref(),
+            LayoutView::Notice => self.notice.as_ref(),
+            LayoutView::Error => self.error.as_ref(),
         }
     }
 
@@ -719,7 +845,7 @@ fn check_blocks(
                     }
                 }
                 LayoutBlock::Pager => {
-                    if !view.is_list() {
+                    if !view.is_paged() {
                         return Err(format!(
                             "page buttons do not belong in the {} message",
                             view_name(view)
@@ -941,6 +1067,12 @@ mod tests {
             blocks: vec![list.clone()],
         }
         .validate(LayoutView::History)
+        .unwrap();
+        // Lyrics turn pages without a list.
+        ViewLayout {
+            blocks: vec![text("{lyrics}"), LayoutBlock::Pager],
+        }
+        .validate(LayoutView::Lyrics)
         .unwrap();
         let mut blocks = vec![list];
         blocks.extend(vec![LayoutBlock::Pager; MAX_ROWS + 1]);

@@ -611,19 +611,27 @@ pub fn default_vote_passed() -> ViewLayout {
 }
 
 /// The queue: a Clear button beside the header, the entries, the page buttons under the box.
-/// The equalizer panel: the curve with the bands drawn on it, the two menus, the nudges and
-/// the switch.
+/// The equalizer panel: the switch beside the header, the preset and band menus under their
+/// own headings, the nudges, and the curve with the bands drawn on it.
 pub fn default_equalizer() -> ViewLayout {
     boxed(vec![
-        text("### {icon} {heading}\n-# {eq.preset} · {eq.state}"),
+        LayoutBlock::Section {
+            texts: vec!["### {icon} {heading}".to_string()],
+            accessory: Accessory::Button {
+                button: ButtonSpec::Control {
+                    control: ControlButton::EqToggle,
+                },
+            },
+        },
         separator(true, SeparatorSpacing::Small),
+        text("### Preset:"),
+        LayoutBlock::EqPresets,
+        text("### Bands:"),
+        LayoutBlock::EqBands,
+        LayoutBlock::EqNudges,
         LayoutBlock::Gallery {
             images: vec![ImageSource::Equalizer],
         },
-        LayoutBlock::EqPresets,
-        LayoutBlock::EqBands,
-        LayoutBlock::EqNudges,
-        controls(&[ControlButton::EqToggle]),
     ])
 }
 

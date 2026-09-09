@@ -54,10 +54,14 @@ pub enum LayoutView {
     Notice,
     /// Something went wrong.
     Error,
+    /// A listener voted to skip: the tally so far.
+    Vote,
+    /// The vote passed and the track was skipped.
+    VotePassed,
 }
 
 impl LayoutView {
-    pub const ALL: [LayoutView; 12] = [
+    pub const ALL: [LayoutView; 14] = [
         LayoutView::NowPlaying,
         LayoutView::Idle,
         LayoutView::Queued,
@@ -70,6 +74,8 @@ impl LayoutView {
         LayoutView::Done,
         LayoutView::Notice,
         LayoutView::Error,
+        LayoutView::Vote,
+        LayoutView::VotePassed,
     ];
 
     /// Views that show a list of entries and therefore need a [`LayoutBlock::List`].
@@ -92,7 +98,8 @@ pub enum SeparatorSpacing {
     Large,
 }
 
-/// A control on the now-playing message. Each may appear once.
+/// One of the bot's controls, as a button. Each may appear once on a message; they work on any
+/// message, and one pressed on a queue, history or lyrics page redraws that page.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 #[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export))]
@@ -313,6 +320,10 @@ pub struct BotLayouts {
     pub notice: ViewLayout,
     #[serde(default = "default_error")]
     pub error: ViewLayout,
+    #[serde(default = "default_vote")]
+    pub vote: ViewLayout,
+    #[serde(default = "default_vote_passed")]
+    pub vote_passed: ViewLayout,
 }
 
 impl Default for BotLayouts {
@@ -331,6 +342,8 @@ impl Default for BotLayouts {
             done: default_done(),
             notice: default_notice(),
             error: default_error(),
+            vote: default_vote(),
+            vote_passed: default_vote_passed(),
         }
     }
 }
@@ -350,6 +363,8 @@ impl BotLayouts {
             LayoutView::Done => &self.done,
             LayoutView::Notice => &self.notice,
             LayoutView::Error => &self.error,
+            LayoutView::Vote => &self.vote,
+            LayoutView::VotePassed => &self.vote_passed,
         }
     }
 
@@ -367,6 +382,8 @@ impl BotLayouts {
             LayoutView::Done => &mut self.done,
             LayoutView::Notice => &mut self.notice,
             LayoutView::Error => &mut self.error,
+            LayoutView::Vote => &mut self.vote,
+            LayoutView::VotePassed => &mut self.vote_passed,
         }
     }
 
@@ -395,6 +412,8 @@ fn view_name(view: LayoutView) -> &'static str {
         LayoutView::Done => "done",
         LayoutView::Notice => "notice",
         LayoutView::Error => "error",
+        LayoutView::Vote => "vote",
+        LayoutView::VotePassed => "vote passed",
     }
 }
 
@@ -531,6 +550,19 @@ pub fn default_error() -> ViewLayout {
     reply()
 }
 
+/// A vote to skip: who wants it, and how far along it is.
+pub fn default_vote() -> ViewLayout {
+    boxed(vec![text(
+        "### {icon} {heading}\n{vote.by} wants to skip {track.line}\n-# {vote.count} of {vote.needed} votes · {vote.percent}% of {vote.listeners} listening",
+    )])
+}
+
+pub fn default_vote_passed() -> ViewLayout {
+    boxed(vec![text(
+        "### {icon} {heading}\n{track.line}\n-# {vote.count} votes",
+    )])
+}
+
 pub fn default_queue() -> ViewLayout {
     boxed(vec![
         text("### {icon} {heading}\n-# {queue.tracks} · {queue.duration} · {bot}"),
@@ -595,6 +627,10 @@ pub struct LayoutOverrides {
     pub notice: Option<ViewLayout>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub error: Option<ViewLayout>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub vote: Option<ViewLayout>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub vote_passed: Option<ViewLayout>,
 }
 
 impl Default for LayoutOverrides {
@@ -613,6 +649,8 @@ impl Default for LayoutOverrides {
             done: None,
             notice: None,
             error: None,
+            vote: None,
+            vote_passed: None,
         }
     }
 }
@@ -632,6 +670,8 @@ impl LayoutOverrides {
             LayoutView::Done => self.done.as_ref(),
             LayoutView::Notice => self.notice.as_ref(),
             LayoutView::Error => self.error.as_ref(),
+            LayoutView::Vote => self.vote.as_ref(),
+            LayoutView::VotePassed => self.vote_passed.as_ref(),
         }
     }
 
@@ -697,16 +737,9 @@ fn check_url(url: &str) -> Result<(), String> {
     }
 }
 
-fn check_button(
-    view: LayoutView,
-    b: &ButtonSpec,
-    seen: &mut Vec<ControlButton>,
-) -> Result<(), String> {
+fn check_button(b: &ButtonSpec, seen: &mut Vec<ControlButton>) -> Result<(), String> {
     match b {
         ButtonSpec::Control { control } => {
-            if view != LayoutView::NowPlaying {
-                return Err("the bot's controls belong on the now-playing message".into());
-            }
             if seen.contains(control) {
                 return Err(format!("{control:?} appears twice; each control once"));
             }
@@ -816,7 +849,7 @@ fn check_blocks(
                         Accessory::Image { source } => check_image(source)?,
                         Accessory::Button { button } => {
                             *rows += 1;
-                            check_button(view, button, seen)?;
+                            check_button(button, seen)?;
                         }
                     }
                 }
@@ -841,7 +874,7 @@ fn check_blocks(
                         return Err(format!("at most {MAX_PER_ROW} buttons in a row"));
                     }
                     for b in buttons {
-                        check_button(view, b, seen)?;
+                        check_button(b, seen)?;
                     }
                 }
                 LayoutBlock::Pager => {
@@ -1012,13 +1045,12 @@ mod tests {
         boxed_list.validate(LayoutView::Queue).unwrap();
         assert_eq!(boxed_list.flat().len(), 2);
 
-        let v = ViewLayout {
-            blocks: vec![controls(&[ControlButton::PlayPause])],
-        };
-        assert!(v
-            .validate(LayoutView::Idle)
-            .unwrap_err()
-            .contains("now-playing"));
+        // A control goes on any message: a Clear button on the queue page, say.
+        ViewLayout {
+            blocks: vec![controls(&[ControlButton::Clear])],
+        }
+        .validate(LayoutView::Idle)
+        .unwrap();
 
         let v = ViewLayout {
             blocks: vec![text("### Queue")],

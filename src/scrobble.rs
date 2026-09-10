@@ -30,6 +30,8 @@ pub enum ClientType {
     Web,
     Desktop,
     Mobile,
+    /// A library's Discord bot, attributing a play to someone in the voice channel.
+    Discord,
 }
 
 /// A single listening event. Created client-side with a UUIDv7 `event_id` so it doubles as the

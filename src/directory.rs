@@ -43,6 +43,21 @@ pub struct HeartbeatResponse {
     pub next_interval_secs: u32,
 }
 
+/// Who owns a library server, as the Hub tells the server itself (`GET /v1/directory/me`).
+/// The library's Discord bots treat the owner as an implicit bot owner, through the Discord
+/// account the owner linked to Chordia, if any.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export))]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+pub struct ServerOwner {
+    pub server_id: Uuid,
+    pub owner_id: Uuid,
+    pub handle: String,
+    pub display_name: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub discord_id: Option<String>,
+}
+
 /// Result of resolving a server before initiating a direct stream.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export))]

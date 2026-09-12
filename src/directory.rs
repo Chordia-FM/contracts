@@ -4,6 +4,7 @@
 use serde::{Deserialize, Serialize};
 
 use crate::auth::{CapabilityAction, ResourceRef};
+use crate::library::PermissionLevel;
 use crate::{EpochMillis, Uuid};
 
 /// A library server's current reachability record in the Hub directory.
@@ -94,6 +95,10 @@ pub struct GrantResponse {
     pub token: String,
     pub server: ServerEndpoint,
     pub expires_at: EpochMillis,
+    /// The level this grant carries, signed into the token as well. Clients read it to know
+    /// whether keeping a copy is allowed at all: `Read` is stream-only, and the library refuses a
+    /// download-shaped request made with such a token.
+    pub permission_level: PermissionLevel,
 }
 
 /// A server paired to the caller's account, as the owner sees it

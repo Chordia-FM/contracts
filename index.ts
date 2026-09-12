@@ -317,4 +317,6 @@ export interface GrantResponse {
 	/** The resolved library server to connect to directly. */
 	server: import("./bindings/ServerEndpoint").ServerEndpoint;
 	expires_at: number;
+	/** Stream-only (`read`) or stream + keep a copy (`download`). */
+	permission_level: import("./bindings/PermissionLevel").PermissionLevel;
 }

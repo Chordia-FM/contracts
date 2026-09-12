@@ -5,4 +5,12 @@ import type { QualityProfile } from "./QualityProfile";
  * Query params for the stream endpoint (`GET /v1/stream/{track_id}`). The `Range` header drives
  * byte positioning; this only selects the tier.
  */
-export type StreamQuery = { profile: QualityProfile, };
+export type StreamQuery = { profile: QualityProfile, 
+/**
+ * Set by a client that is keeping a copy rather than playing the bytes through. It is the
+ * only way the server can tell the two apart - the HTTP request is otherwise identical - so a
+ * stream-only capability (`PermissionLevel::Read`) is refused when it is set. An honest flag
+ * from our own clients, backed by the UI refusing the action for such a share; the share tier
+ * is a courtesy boundary between friends, not a DRM claim.
+ */
+download: boolean, };

@@ -16,6 +16,22 @@ pub struct LastfmStatus {
     pub username: Option<String>,
 }
 
+/// Response of `POST /v1/lastfm/connect`: where to send the browser, and the opaque state value
+/// that binds the resulting callback to the user who started the flow.
+///
+/// The state also rides in the Last.fm callback URL, so the callback page can compare it against
+/// the copy it kept — a `?token=` link from somewhere else carries a state this browser never
+/// started with, and is refused before anything is linked.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export))]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+pub struct LastfmConnectResponse {
+    /// Last.fm's authorization page, with the Hub's callback (carrying `state`) attached.
+    pub authorize_url: String,
+    /// Opaque, short-lived, signed value to echo back to `POST /v1/lastfm/session`.
+    pub state: String,
+}
+
 /// Body of `POST /v1/lastfm/session`: the single-use web-auth token from the Last.fm callback,
 /// which the Hub exchanges (signed) for the user's permanent session key.
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -23,6 +39,9 @@ pub struct LastfmStatus {
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 pub struct LastfmSessionRequest {
     pub token: String,
+    /// The `state` minted by `POST /v1/lastfm/connect` for this caller. Required: without it the
+    /// link flow would accept any token the browser was pointed at (account-linking CSRF).
+    pub state: String,
 }
 
 /// Global account registration payload.

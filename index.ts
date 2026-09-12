@@ -161,6 +161,7 @@ export * from "./bindings/ImportSource";
 export * from "./bindings/InstanceInfo";
 export * from "./bindings/LabelDetail";
 export * from "./bindings/LabelSummary";
+export * from "./bindings/LastfmConnectResponse";
 export * from "./bindings/LastfmSessionRequest";
 export * from "./bindings/LastfmStatus";
 export * from "./bindings/LayoutBlock";

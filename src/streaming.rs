@@ -48,6 +48,10 @@ pub struct StreamQuery {
     /// stream-only capability (`PermissionLevel::Read`) is refused when it is set. An honest flag
     /// from our own clients, backed by the UI refusing the action for such a share; the share tier
     /// is a courtesy boundary between friends, not a DRM claim.
+    ///
+    /// Spelled `download=true` on the wire, never `download=1`: this is a `bool` and the server
+    /// deserializes the query with `serde_urlencoded`, which accepts only `true`/`false` and
+    /// fails the *whole* query on anything else - so `1` does not mean false, it means 400.
     #[serde(default)]
     pub download: bool,
 }

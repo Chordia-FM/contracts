@@ -95,3 +95,36 @@ pub struct GrantResponse {
     pub server: ServerEndpoint,
     pub expires_at: EpochMillis,
 }
+
+/// A server paired to the caller's account, as the owner sees it
+/// (`GET /v1/servers`). The API key itself is never included — it is returned exactly once, by
+/// pairing, and afterwards only ever replaced by a rotation.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export))]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+pub struct PairedServer {
+    pub server_id: Uuid,
+    /// Last endpoint the server advertised, if it has ever heartbeat.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub endpoint: Option<String>,
+    /// The pinned TLS leaf fingerprint the server last advertised (hex SHA-256).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub tls_fingerprint: Option<String>,
+    pub online: bool,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub last_heartbeat: Option<EpochMillis>,
+    /// Names of the logical libraries this server backs. Unpairing the server removes them too,
+    /// so the owner can see what a revoke would take with it.
+    pub libraries: Vec<String>,
+}
+
+/// A freshly rotated server API key (`POST /v1/servers/{server_id}/rotate-key`). The previous key
+/// stops authenticating immediately, so the library has to be re-paired or reconfigured with this
+/// one.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export))]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+pub struct RotatedServerKey {
+    pub server_id: Uuid,
+    pub server_api_key: String,
+}

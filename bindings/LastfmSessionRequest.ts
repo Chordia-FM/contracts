@@ -4,4 +4,9 @@
  * Body of `POST /v1/lastfm/session`: the single-use web-auth token from the Last.fm callback,
  * which the Hub exchanges (signed) for the user's permanent session key.
  */
-export type LastfmSessionRequest = { token: string, };
+export type LastfmSessionRequest = { token: string, 
+/**
+ * The `state` minted by `POST /v1/lastfm/connect` for this caller. Required: without it the
+ * link flow would accept any token the browser was pointed at (account-linking CSRF).
+ */
+state: string, };

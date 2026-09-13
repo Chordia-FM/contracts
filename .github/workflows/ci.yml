@@ -10,13 +10,20 @@ on:
 env:
   CARGO_TERM_COLOR: always
 
+# Least privilege for the default GITHUB_TOKEN. Jobs that need to write something declare it
+# themselves, so a compromised third-party action in an ordinary job cannot push, tag or release.
+permissions:
+  contents: read
+
 jobs:
   rust:
     runs-on: blacksmith-4vcpu-ubuntu-2404
     steps:
-      - uses: actions/checkout@v7
-      - uses: dtolnay/rust-toolchain@stable
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      # Pinned by commit SHA, so the toolchain the `@stable` ref used to imply is named here.
+      - uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87 # stable branch, resolved 2026-09-12
         with:
+          toolchain: stable
           components: rustfmt, clippy
       # Keyed on rustc version + Cargo.lock + OS/arch, and it prunes this crate's OWN artifacts
       # before saving, so chordia_contracts is always recompiled from the checked-out source.
@@ -25,7 +32,7 @@ jobs:
       # Deliberately NOT `cache-on-failure`: `cargo fmt --all --check` runs first and compiles
       # nothing, so a formatting failure would save an empty entry -- and on a full key match
       # rust-cache skips the save, so nothing could ever replace it.
-      - uses: Swatinem/rust-cache@v2
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
       - run: cargo fmt --all --check
       - run: cargo clippy --all-targets -- -D warnings
       - run: cargo test --all
@@ -63,7 +70,7 @@ jobs:
     # artifact, so the architecture it ran on cannot reach production or a user's machine.
     runs-on: blacksmith-2vcpu-ubuntu-2404-arm
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       # NOT every `v*` tag in this repository is a release of this crate.
       #
       # The desktop app's releases are MIRRORED here, because `frontend` is private and GitHub will
@@ -89,13 +96,15 @@ jobs:
             echo "::notice::Tag $GITHUB_REF_NAME is not this crate's version ($crate), so nothing is published. This is a mirrored desktop release."
           fi
       - if: steps.owns.outputs.ours == 'true'
-        uses: dtolnay/rust-toolchain@stable
+        uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87 # stable branch, resolved 2026-09-12
+        with:
+          toolchain: stable
       # Publish the Rust crate.
       - if: steps.owns.outputs.ours == 'true'
         run: cargo publish --token ${{ secrets.CARGO_REGISTRY_TOKEN }}
       # Generate + publish the npm package.
       - if: steps.owns.outputs.ours == 'true'
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           node-version: 22
           registry-url: https://registry.npmjs.org

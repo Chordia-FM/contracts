@@ -161,6 +161,7 @@ export * from "./bindings/ImportSource";
 export * from "./bindings/InstanceInfo";
 export * from "./bindings/LabelDetail";
 export * from "./bindings/LabelSummary";
+export * from "./bindings/LastfmConnectResponse";
 export * from "./bindings/LastfmSessionRequest";
 export * from "./bindings/LastfmStatus";
 export * from "./bindings/LayoutBlock";
@@ -199,6 +200,7 @@ export * from "./bindings/NowPlayingReport";
 export * from "./bindings/OnThisDay";
 export * from "./bindings/OnThisDayYear";
 export * from "./bindings/OverrideKind";
+export * from "./bindings/PairedServer";
 export * from "./bindings/Period";
 export * from "./bindings/PermissionLevel";
 export * from "./bindings/PinKind";
@@ -250,6 +252,7 @@ export * from "./bindings/ResolvedTrack";
 export * from "./bindings/ResourceRef";
 export * from "./bindings/RestoreReport";
 export * from "./bindings/RoomState";
+export * from "./bindings/RotatedServerKey";
 export * from "./bindings/ScrobbleBatch";
 export * from "./bindings/ScrobbleBatchResponse";
 export * from "./bindings/ScrobbleEdit";
@@ -314,4 +317,6 @@ export interface GrantResponse {
 	/** The resolved library server to connect to directly. */
 	server: import("./bindings/ServerEndpoint").ServerEndpoint;
 	expires_at: number;
+	/** Stream-only (`read`) or stream + keep a copy (`download`). */
+	permission_level: import("./bindings/PermissionLevel").PermissionLevel;
 }

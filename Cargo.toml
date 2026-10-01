@@ -18,7 +18,7 @@ ts-rs = { version = "12", optional = true, features = ["uuid-impl"] }
 
 # Optional: OpenAPI component-schema derivation (`utoipa::ToSchema`). Enabled by the backend so the
 # served OpenAPI spec reuses these canonical types; off by default for lean library/dj builds.
-utoipa = { version = "5", optional = true, features = ["uuid"] }
+utoipa = { version = "6", optional = true, features = ["uuid"] }
 
 [dev-dependencies]
 # Wire-shape assertions only (a field that must be OMITTED, not sent as null/empty, is invisible to
